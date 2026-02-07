@@ -4,7 +4,7 @@ mod render;
 mod animation;
 mod weather;
 
-use animation::{raindrops::RaindropSystem, sunny::SunnyAnimation, AnimationController};
+use animation::{raindrops::RaindropSystem, sunny::SunnyAnimation, thunderstorm::ThunderstormSystem, AnimationController};
 use clap::Parser;
 use config::Config;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
@@ -76,12 +76,18 @@ async fn run_app(config: &Config, renderer: &mut TerminalRenderer, simulate_cond
     let mut current_weather = None;
     let mut weather_error: Option<String> = None;
     let mut is_raining = false;
+    let mut is_thunderstorm = false;
     let (term_width, term_height) = renderer.get_size();
     let mut raindrop_system = RaindropSystem::new(term_width, term_height);
+    let mut thunderstorm_system = ThunderstormSystem::new(term_width, term_height);
     
     if let Some(ref condition_str) = simulate_condition {
         let simulated_condition = parse_weather_condition(condition_str);
-        is_raining = matches!(
+        is_thunderstorm = matches!(
+            simulated_condition,
+            WeatherCondition::Thunderstorm | WeatherCondition::ThunderstormHail
+        );
+        is_raining = !is_thunderstorm && matches!(
             simulated_condition,
             WeatherCondition::Drizzle | WeatherCondition::Rain | 
             WeatherCondition::RainShowers | WeatherCondition::FreezingRain
@@ -106,7 +112,11 @@ async fn run_app(config: &Config, renderer: &mut TerminalRenderer, simulate_cond
         if simulate_condition.is_none() && (current_weather.is_none() || last_update.elapsed() >= REFRESH_INTERVAL) {
             match weather_client.get_current_weather(&location, &units).await {
                 Ok(weather) => {
-                    is_raining = matches!(
+                    is_thunderstorm = matches!(
+                        weather.condition,
+                        WeatherCondition::Thunderstorm | WeatherCondition::ThunderstormHail
+                    );
+                    is_raining = !is_thunderstorm && matches!(
                         weather.condition,
                         WeatherCondition::Drizzle | WeatherCondition::Rain | 
                         WeatherCondition::RainShowers | WeatherCondition::FreezingRain
@@ -165,7 +175,10 @@ async fn run_app(config: &Config, renderer: &mut TerminalRenderer, simulate_cond
             crossterm::style::Color::Cyan,
         )?;
 
-        if is_raining {
+        if is_thunderstorm {
+            thunderstorm_system.update(term_width, term_height);
+            thunderstorm_system.render(renderer)?;
+        } else if is_raining {
             raindrop_system.update(term_width, term_height);
             raindrop_system.render(renderer)?;
         } else {
@@ -192,7 +205,7 @@ async fn run_app(config: &Config, renderer: &mut TerminalRenderer, simulate_cond
         }
 
         if last_frame_time.elapsed() >= FRAME_DELAY {
-            if !is_raining {
+            if !is_raining && !is_thunderstorm {
                 animation_controller.next_frame(&sunny_animation);
             }
             last_frame_time = Instant::now();

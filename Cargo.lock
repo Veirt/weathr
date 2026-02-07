@@ -1831,6 +1831,7 @@ dependencies = [
  "clap",
  "crossterm",
  "dirs",
+ "rand",
  "reqwest",
  "serde",
  "serde_json",

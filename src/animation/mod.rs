@@ -1,6 +1,7 @@
 pub mod rain;
 pub mod raindrops;
 pub mod sunny;
+pub mod thunderstorm;
 
 use crate::render::TerminalRenderer;
 use std::io;
