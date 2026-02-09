@@ -84,10 +84,10 @@ impl AppState {
         }
 
         let location_str = if self.hide_location {
-            "Location: Hidden".to_string()
+            String::new()
         } else {
             format!(
-                "Location: {:.2}°N, {:.2}°E",
+                " | Location: {:.2}°N, {:.2}°E",
                 self.location.latitude, self.location.longitude
             )
         };
@@ -95,10 +95,10 @@ impl AppState {
         let offline_indicator = if self.is_offline { " | OFFLINE" } else { "" };
 
         self.cached_weather_info = if let Some(ref error) = self.weather_error {
-            format!("{} | {} | Press 'q' to quit", error, location_str)
+            format!("{}{} | Press 'q' to quit", error, location_str)
         } else if let Some(ref weather) = self.current_weather {
             format!(
-                "Weather: {} | Temp: {:.1}°C{} | {} | Press 'q' to quit",
+                "Weather: {} | Temp: {:.1}°C{}{} | Press 'q' to quit",
                 self.get_condition_text(),
                 weather.temperature,
                 offline_indicator,
@@ -106,7 +106,7 @@ impl AppState {
             )
         } else {
             format!(
-                "Weather: Loading... {} | {} | Press 'q' to quit",
+                "Weather: Loading... {}{} | Press 'q' to quit",
                 self.loading_state.current_char(),
                 location_str
             )
