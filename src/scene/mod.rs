@@ -70,12 +70,14 @@ impl WorldScene {
         // Render Decorations
         self.decorations.render(
             renderer,
-            horizon_y,
-            house_x,
-            house_width,
-            path_center,
-            self.width,
-            conditions.is_day,
+            &crate::scene::decorations::DecorationRenderConfig {
+                horizon_y,
+                house_x,
+                house_width,
+                path_center,
+                width: self.width,
+                is_day: conditions.is_day,
+            },
         )?;
 
         Ok(())

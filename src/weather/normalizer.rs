@@ -116,7 +116,7 @@ mod tests {
 
         assert_eq!(data.condition, WeatherCondition::Rain);
         assert_eq!(data.temperature, 20.5);
-        assert_eq!(data.is_day, true);
+        assert!(data.is_day);
         assert_eq!(data.moon_phase, Some(0.5));
     }
 }

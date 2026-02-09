@@ -42,7 +42,7 @@ fn test_config_integration_realistic_coordinates() {
         drop(file);
 
         let config = Config::load_from_path(&test_config_path)
-            .expect(&format!("Failed to load config for {}", city_name));
+            .unwrap_or_else(|_| panic!("Failed to load config for {}", city_name));
 
         assert_eq!(config.location.latitude, lat);
         assert_eq!(config.location.longitude, lon);
@@ -95,12 +95,12 @@ fn test_config_integration_extra_whitespace() {
     let test_config_path = temp_dir.join("weathr_whitespace.toml");
 
     let mut file = fs::File::create(&test_config_path).unwrap();
-    writeln!(file, "").unwrap();
+    writeln!(file).unwrap();
     writeln!(file, "  [location]  ").unwrap();
-    writeln!(file, "").unwrap();
+    writeln!(file).unwrap();
     writeln!(file, "  latitude  =  48.8566  ").unwrap();
     writeln!(file, "  longitude  =  2.3522  ").unwrap();
-    writeln!(file, "").unwrap();
+    writeln!(file).unwrap();
     drop(file);
 
     let config = Config::load_from_path(&test_config_path).expect("Should handle extra whitespace");
