@@ -20,6 +20,7 @@ tokio = { version = "1", features = [
     "sync",
     "time",
     "macros",
+    "signal",
 ] }
 reqwest = { version = "0.13", features = ["json"] }
 async-trait = "0.1"
@@ -31,7 +32,6 @@ chrono = "0.4"
 lto = "thin"
 codegen-units = 1
 strip = true
-panic = "abort"
 
 [profile.dev]
 opt-level = 1

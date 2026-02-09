@@ -150,21 +150,26 @@ impl AnimationManager {
         term_width: u16,
         term_height: u16,
     ) -> io::Result<()> {
+        let mut rng = rand::rng();
+
         if conditions.is_thunderstorm {
-            self.raindrop_system.update(term_width, term_height);
+            self.raindrop_system
+                .update(term_width, term_height, &mut rng);
             self.raindrop_system.render(renderer)?;
 
-            self.thunderstorm_system.update(term_width, term_height);
+            self.thunderstorm_system
+                .update(term_width, term_height, &mut rng);
             self.thunderstorm_system.render(renderer)?;
 
             if self.thunderstorm_system.is_flashing() {
                 renderer.flash_screen()?;
             }
         } else if conditions.is_raining {
-            self.raindrop_system.update(term_width, term_height);
+            self.raindrop_system
+                .update(term_width, term_height, &mut rng);
             self.raindrop_system.render(renderer)?;
         } else if conditions.is_snowing {
-            self.snow_system.update(term_width, term_height);
+            self.snow_system.update(term_width, term_height, &mut rng);
             self.snow_system.render(renderer)?;
         }
 

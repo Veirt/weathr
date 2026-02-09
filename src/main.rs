@@ -10,8 +10,13 @@ mod weather;
 
 use clap::Parser;
 use config::Config;
+use crossterm::{
+    cursor, execute,
+    style::ResetColor,
+    terminal::{LeaveAlternateScreen, disable_raw_mode},
+};
 use render::TerminalRenderer;
-use std::io;
+use std::{io, panic};
 
 #[derive(Parser)]
 #[command(version, about = "Terminal-based ASCII weather application", long_about = None)]
@@ -46,6 +51,13 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    let default_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |info| {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, cursor::Show, ResetColor);
+        default_hook(info);
+    }));
+
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(err) => {
@@ -157,7 +169,12 @@ async fn main() -> io::Result<()> {
         term_height,
     );
 
-    let result = app.run(&mut renderer).await;
+    let result = tokio::select! {
+        res = app.run(&mut renderer) => res,
+        _ = tokio::signal::ctrl_c() => {
+            Ok(())
+        }
+    };
 
     renderer.cleanup()?;
 

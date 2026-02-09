@@ -1,6 +1,7 @@
 use crate::render::TerminalRenderer;
 use crate::weather::types::RainIntensity;
 use crossterm::style::Color;
+use rand::prelude::*;
 use std::io;
 
 const MAX_SPLASHES: usize = 100;
@@ -15,6 +16,7 @@ struct Raindrop {
     z_index: u8,
 }
 
+#[derive(Clone, Copy)]
 struct Splash {
     x: u16,
     y: u16,
@@ -25,6 +27,7 @@ struct Splash {
 pub struct RaindropSystem {
     drops: Vec<Raindrop>,
     splashes: Vec<Splash>,
+    new_splashes: Vec<Splash>,
     terminal_width: u16,
     terminal_height: u16,
     intensity: RainIntensity,
@@ -36,6 +39,7 @@ impl RaindropSystem {
         let mut system = Self {
             drops: Vec::new(),
             splashes: Vec::new(),
+            new_splashes: Vec::with_capacity(20),
             terminal_width,
             terminal_height,
             intensity,
@@ -62,10 +66,10 @@ impl RaindropSystem {
         self.wind_x = base_wind * direction_multiplier;
     }
 
-    fn spawn_drop(&mut self) {
-        let x = (rand::random::<u32>() % (self.terminal_width as u32 * 2)) as f32
+    fn spawn_drop(&mut self, rng: &mut impl Rng) {
+        let x = (rng.random::<u32>() % (self.terminal_width as u32 * 2)) as f32
             - (self.terminal_width as f32 * 0.5);
-        let z_index = if rand::random::<bool>() { 1 } else { 0 };
+        let z_index = if rng.random::<bool>() { 1 } else { 0 };
 
         let (speed_y, chars, color) = match self.intensity {
             RainIntensity::Drizzle => (
@@ -111,20 +115,20 @@ impl RaindropSystem {
             ),
         };
 
-        let char_idx = (rand::random::<u32>() as usize) % chars.len();
+        let char_idx = (rng.random::<u32>() as usize) % chars.len();
 
         self.drops.push(Raindrop {
             x,
             y: 0.0,
-            speed_y: speed_y + (rand::random::<f32>() * 0.2),
-            speed_x: self.wind_x + (rand::random::<f32>() * 0.1 - 0.05),
+            speed_y: speed_y + (rng.random::<f32>() * 0.2),
+            speed_x: self.wind_x + (rng.random::<f32>() * 0.1 - 0.05),
             character: chars[char_idx],
             color,
             z_index,
         });
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16) {
+    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -142,26 +146,25 @@ impl RaindropSystem {
                 _ => 5,
             };
             for _ in 0..spawn_rate {
-                self.spawn_drop();
+                self.spawn_drop(rng);
             }
         }
 
         // Update drops
-        let mut new_splashes = Vec::new();
+        let new_splashes = &mut self.new_splashes;
+        let splash_chance = match self.intensity {
+            RainIntensity::Drizzle => 0.1,
+            RainIntensity::Light => 0.3,
+            _ => 0.6,
+        };
+
         self.drops.retain_mut(|drop| {
             drop.y += drop.speed_y;
             drop.x += drop.speed_x;
 
             // Hit ground?
             if drop.y >= (terminal_height - 1) as f32 {
-                // Chance to splash
-                let splash_chance = match self.intensity {
-                    RainIntensity::Drizzle => 0.1,
-                    RainIntensity::Light => 0.3,
-                    _ => 0.6,
-                };
-
-                if drop.z_index == 1 && rand::random::<f32>() < splash_chance {
+                if drop.z_index == 1 && rng.random::<f32>() < splash_chance {
                     new_splashes.push(Splash {
                         x: drop.x as u16,
                         y: terminal_height - 1,
@@ -180,7 +183,7 @@ impl RaindropSystem {
             true
         });
 
-        self.splashes.extend(new_splashes);
+        self.splashes.append(&mut self.new_splashes);
 
         if self.splashes.len() > MAX_SPLASHES {
             self.splashes.drain(0..(self.splashes.len() - MAX_SPLASHES));

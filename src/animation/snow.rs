@@ -1,6 +1,7 @@
 use crate::render::TerminalRenderer;
 use crate::weather::types::SnowIntensity;
 use crossterm::style::Color;
+use rand::prelude::*;
 use std::io;
 
 struct Snowflake {
@@ -52,12 +53,12 @@ impl SnowSystem {
         self.wind_x = base_wind * direction_multiplier;
     }
 
-    fn spawn_flake(&mut self) {
+    fn spawn_flake(&mut self, rng: &mut impl Rng) {
         // Spawn across a wider area to account for wind blowing them in
-        let x = (rand::random::<u32>() % (self.terminal_width as u32 * 3)) as f32
+        let x = (rng.random::<u32>() % (self.terminal_width as u32 * 3)) as f32
             - (self.terminal_width as f32);
 
-        let z_index = if rand::random::<bool>() { 1 } else { 0 };
+        let z_index = if rng.random::<bool>() { 1 } else { 0 };
 
         let (base_speed_y, chars) = match self.intensity {
             SnowIntensity::Light => (if z_index == 1 { 0.15 } else { 0.08 }, vec!['.', '·']),
@@ -65,14 +66,14 @@ impl SnowSystem {
             SnowIntensity::Heavy => (if z_index == 1 { 0.3 } else { 0.15 }, vec!['*', '.', '·']),
         };
 
-        let char_idx = (rand::random::<u32>() as usize) % chars.len();
+        let char_idx = (rng.random::<u32>() as usize) % chars.len();
 
         self.flakes.push(Snowflake {
             x,
             y: 0.0,
-            speed_y: base_speed_y + (rand::random::<f32>() * 0.05),
-            speed_x: self.wind_x + (rand::random::<f32>() * 0.1 - 0.05),
-            sway_offset: rand::random::<f32>() * 100.0, // Random phase for sway
+            speed_y: base_speed_y + (rng.random::<f32>() * 0.05),
+            speed_x: self.wind_x + (rng.random::<f32>() * 0.1 - 0.05),
+            sway_offset: rng.random::<f32>() * 100.0, // Random phase for sway
             character: chars[char_idx],
             color: if z_index == 1 {
                 Color::White
@@ -82,7 +83,7 @@ impl SnowSystem {
         });
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16) {
+    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -99,7 +100,7 @@ impl SnowSystem {
                 SnowIntensity::Heavy => 4,
             };
             for _ in 0..spawn_rate {
-                self.spawn_flake();
+                self.spawn_flake(rng);
             }
         }
 

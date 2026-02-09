@@ -6,7 +6,7 @@ use crossterm::{
     style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::io::{self, Stdout, Write};
+use std::io::{self, BufWriter, Stdout, Write};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Cell {
@@ -24,7 +24,7 @@ impl Default for Cell {
 }
 
 pub struct TerminalRenderer {
-    stdout: Stdout,
+    stdout: BufWriter<Stdout>,
     width: u16,
     height: u16,
     buffer: Vec<Cell>,
@@ -35,7 +35,7 @@ pub struct TerminalRenderer {
 impl TerminalRenderer {
     pub fn new() -> io::Result<Self> {
         let (width, height) = terminal::size()?;
-        let stdout = io::stdout();
+        let stdout = BufWriter::new(io::stdout());
         let buffer_size = (width as usize) * (height as usize);
         let capabilities = TerminalCapabilities::detect();
 

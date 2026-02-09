@@ -1,5 +1,6 @@
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
+use rand::prelude::*;
 use std::io;
 
 const MAX_BOLTS: usize = 10;
@@ -42,8 +43,8 @@ impl ThunderstormSystem {
         }
     }
 
-    fn generate_bolt(&mut self) {
-        let start_x = (rand::random::<u16>() % (self.terminal_width - 10)) + 5;
+    fn generate_bolt(&mut self, rng: &mut impl Rng) {
+        let start_x = (rng.random::<u16>() % (self.terminal_width - 10)) + 5;
         let mut segments = Vec::new();
         let mut x = start_x as i16;
         let mut y = 2; // Start below top bar
@@ -51,7 +52,7 @@ impl ThunderstormSystem {
         segments.push((x as u16, y as u16, '+')); // Start point
 
         while y < (self.terminal_height - 5) as i16 {
-            let direction = (rand::random::<i8>() % 3) - 1; // -1, 0, 1
+            let direction = (rng.random::<i8>() % 3) - 1; // -1, 0, 1
             x += direction as i16;
             y += 1;
 
@@ -72,7 +73,7 @@ impl ThunderstormSystem {
             segments.push((x as u16, y as u16, char));
 
             // Occasionally branch
-            if rand::random::<f32>() < 0.2 {
+            if rng.random::<f32>() < 0.2 {
                 let branch_dir = -direction;
                 let mut bx = x + branch_dir as i16;
                 let mut by = y + 1;
@@ -101,7 +102,7 @@ impl ThunderstormSystem {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16) {
+    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -111,7 +112,7 @@ impl ThunderstormSystem {
                 if self.timer >= self.next_strike_in {
                     self.state = LightningState::Forming;
                     self.timer = 0;
-                    self.generate_bolt();
+                    self.generate_bolt(rng);
                 } else {
                     self.timer += 1;
                 }
@@ -143,7 +144,7 @@ impl ThunderstormSystem {
                 if self.bolts.is_empty() {
                     self.state = LightningState::Idle;
                     self.timer = 0;
-                    self.next_strike_in = 30 + (rand::random::<u16>() % 200);
+                    self.next_strike_in = 30 + (rng.random::<u16>() % 200);
                 }
             }
         }
