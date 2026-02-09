@@ -172,3 +172,24 @@ pub struct WeatherLocation {
     pub longitude: f64,
     pub elevation: Option<f64>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WeatherConditions {
+    pub is_raining: bool,
+    pub is_snowing: bool,
+    pub is_thunderstorm: bool,
+    pub is_cloudy: bool,
+    pub is_day: bool,
+}
+
+impl Default for WeatherConditions {
+    fn default() -> Self {
+        Self {
+            is_raining: false,
+            is_snowing: false,
+            is_thunderstorm: false,
+            is_cloudy: false,
+            is_day: true,
+        }
+    }
+}

@@ -3,6 +3,7 @@ pub mod ground;
 pub mod house;
 
 use crate::render::TerminalRenderer;
+use crate::weather::WeatherConditions;
 use std::io;
 
 pub struct WorldScene {
@@ -35,7 +36,11 @@ impl WorldScene {
         self.height = height;
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        conditions: &WeatherConditions,
+    ) -> io::Result<()> {
         let horizon_y = self.height.saturating_sub(Self::GROUND_HEIGHT);
 
         // House position
@@ -55,10 +60,12 @@ impl WorldScene {
             Self::GROUND_HEIGHT,
             horizon_y,
             path_center,
+            conditions.is_day,
         )?;
 
         // Render House
-        self.house.render(renderer, house_x, house_y)?;
+        self.house
+            .render(renderer, house_x, house_y, conditions.is_day)?;
 
         // Render Decorations
         self.decorations.render(
@@ -68,6 +75,7 @@ impl WorldScene {
             house_width,
             path_center,
             self.width,
+            conditions.is_day,
         )?;
 
         Ok(())

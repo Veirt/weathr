@@ -3,10 +3,11 @@ use crate::animation::{
     fireflies::FireflySystem, leaves::FallingLeaves, moon::MoonSystem, raindrops::RaindropSystem,
     snow::SnowSystem, stars::StarSystem, sunny::SunnyAnimation, thunderstorm::ThunderstormSystem,
 };
-use crate::app_state::{AppState, WeatherConditions};
+use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
 use crate::scene::WorldScene;
 use crate::scene::house::House;
+use crate::weather::WeatherConditions;
 use crate::weather::{RainIntensity, SnowIntensity};
 use std::io;
 use std::time::{Duration, Instant};

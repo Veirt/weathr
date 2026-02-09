@@ -13,23 +13,56 @@ impl Ground {
         height: u16,
         y_start: u16,
         path_center: u16,
+        is_day: bool,
     ) -> io::Result<()> {
         let width = width as usize;
         let height = height as usize;
         let path_center = path_center as usize;
 
-        let grass_colors = [Color::Green, Color::DarkGreen];
-        let flower_colors = [Color::Magenta, Color::Red, Color::Cyan, Color::Yellow];
-        let soil_color = Color::Rgb {
-            r: 101,
-            g: 67,
-            b: 33,
-        }; // Brownish
-        let path_color = Color::Rgb {
-            r: 180,
-            g: 160,
-            b: 120,
-        }; // Light sandy path
+        let grass_colors = if is_day {
+            [Color::Green, Color::DarkGreen]
+        } else {
+            [Color::DarkGreen, Color::Rgb { r: 0, g: 50, b: 0 }]
+        };
+
+        let flower_colors = if is_day {
+            vec![Color::Magenta, Color::Red, Color::Cyan, Color::Yellow]
+        } else {
+            vec![
+                Color::DarkMagenta,
+                Color::DarkRed,
+                Color::Blue,
+                Color::DarkYellow,
+            ]
+        };
+
+        let soil_color = if is_day {
+            Color::Rgb {
+                r: 101,
+                g: 67,
+                b: 33,
+            }
+        } else {
+            Color::Rgb {
+                r: 60,
+                g: 40,
+                b: 20,
+            }
+        };
+
+        let path_color = if is_day {
+            Color::Rgb {
+                r: 180,
+                g: 160,
+                b: 120,
+            }
+        } else {
+            Color::Rgb {
+                r: 100,
+                g: 90,
+                b: 70,
+            }
+        };
 
         // Simple seeded RNG for deterministic decoration positions
         fn pseudo_rand(x: usize, y: usize) -> u32 {

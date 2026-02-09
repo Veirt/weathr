@@ -52,8 +52,30 @@ impl House {
         ]
     }
 
-    pub fn render(&self, renderer: &mut TerminalRenderer, x: u16, y: u16) -> io::Result<()> {
+    pub fn render(
+        &self,
+        renderer: &mut TerminalRenderer,
+        x: u16,
+        y: u16,
+        is_day: bool,
+    ) -> io::Result<()> {
         let ascii = self.get_ascii();
+
+        let wood_color = if is_day {
+            WOOD_COLOR
+        } else {
+            Color::Rgb {
+                r: 100,
+                g: 70,
+                b: 50,
+            }
+        };
+        let roof_color = if is_day {
+            Color::DarkRed
+        } else {
+            Color::DarkMagenta
+        };
+        let window_color = if is_day { Color::Cyan } else { Color::Yellow };
 
         for (i, line) in ascii.iter().enumerate() {
             let row = y + i as u16;
@@ -67,27 +89,27 @@ impl House {
                         } else if i < 4 {
                             Color::Grey
                         } else {
-                            Color::DarkRed
+                            roof_color
                         };
                         renderer.render_char(col, row, ch, color)?;
                     }
                 }
                 7 => {
-                    renderer.render_line_colored(x, row, line, Color::DarkRed)?;
+                    renderer.render_line_colored(x, row, line, roof_color)?;
                 }
                 8..=10 => {
                     for (j, ch) in line.chars().enumerate() {
                         let col = x + j as u16;
                         let color = if ch == '[' || ch == ']' {
-                            Color::Cyan
+                            window_color
                         } else if ch == '|' || ch == '.' || ch == '_' {
-                            WOOD_COLOR
+                            wood_color
                         } else if ch == '(' || ch == ')' {
                             DOOR_COLOR
                         } else if ch == '=' {
                             Color::DarkGrey
                         } else {
-                            WOOD_COLOR
+                            wood_color
                         };
                         renderer.render_char(col, row, ch, color)?;
                     }
@@ -100,7 +122,7 @@ impl House {
                         } else if ch == '(' || ch == ')' {
                             DOOR_COLOR
                         } else {
-                            WOOD_COLOR
+                            wood_color
                         };
                         renderer.render_char(col, row, ch, color)?;
                     }
@@ -109,7 +131,11 @@ impl House {
                     for (j, ch) in line.chars().enumerate() {
                         let col = x + j as u16;
                         let color = if ch == '^' {
-                            Color::Green
+                            if is_day {
+                                Color::Green
+                            } else {
+                                Color::DarkGreen
+                            }
                         } else if ch == '=' {
                             Color::DarkGrey
                         } else {

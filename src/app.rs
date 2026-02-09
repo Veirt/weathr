@@ -129,7 +129,8 @@ impl App {
                 term_height,
             )?;
 
-            self.scene.render(renderer)?;
+            self.scene
+                .render(renderer, &self.state.weather_conditions)?;
 
             self.animations.render_chimney_smoke(
                 renderer,

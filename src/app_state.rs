@@ -1,4 +1,4 @@
-use crate::weather::{WeatherCondition, WeatherData, WeatherLocation};
+use crate::weather::{WeatherCondition, WeatherConditions, WeatherData, WeatherLocation};
 use std::time::Instant;
 
 pub struct AppState {
@@ -9,20 +9,6 @@ pub struct AppState {
     pub cached_weather_info: String,
     pub weather_info_needs_update: bool,
     pub location: WeatherLocation,
-}
-
-pub struct WeatherConditions {
-    pub is_raining: bool,
-    pub is_snowing: bool,
-    pub is_thunderstorm: bool,
-    pub is_cloudy: bool,
-    pub is_day: bool,
-}
-
-pub struct LoadingState {
-    pub frame: usize,
-    pub last_update: Instant,
-    loading_chars: [char; 4],
 }
 
 impl AppState {
@@ -153,16 +139,10 @@ impl AppState {
     }
 }
 
-impl WeatherConditions {
-    pub fn default() -> Self {
-        Self {
-            is_raining: false,
-            is_snowing: false,
-            is_thunderstorm: false,
-            is_cloudy: false,
-            is_day: true,
-        }
-    }
+pub struct LoadingState {
+    pub frame: usize,
+    pub last_update: Instant,
+    pub loading_chars: [char; 4],
 }
 
 impl LoadingState {
