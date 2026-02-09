@@ -1,14 +1,15 @@
 use crate::animation::{
     AnimationController, birds::BirdSystem, chimney::ChimneySmoke, clouds::CloudSystem,
-    fireflies::FireflySystem, leaves::FallingLeaves, moon::MoonSystem, raindrops::RaindropSystem,
-    snow::SnowSystem, stars::StarSystem, sunny::SunnyAnimation, thunderstorm::ThunderstormSystem,
+    fireflies::FireflySystem, fog::FogSystem, leaves::FallingLeaves, moon::MoonSystem,
+    raindrops::RaindropSystem, snow::SnowSystem, stars::StarSystem, sunny::SunnyAnimation,
+    thunderstorm::ThunderstormSystem,
 };
 use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
 use crate::scene::WorldScene;
 use crate::scene::house::House;
 use crate::weather::WeatherConditions;
-use crate::weather::{RainIntensity, SnowIntensity};
+use crate::weather::{FogIntensity, RainIntensity, SnowIntensity};
 use std::io;
 use std::time::{Duration, Instant};
 
@@ -17,6 +18,7 @@ const FRAME_DELAY: Duration = Duration::from_millis(500);
 pub struct AnimationManager {
     raindrop_system: RaindropSystem,
     snow_system: SnowSystem,
+    fog_system: FogSystem,
     thunderstorm_system: ThunderstormSystem,
     cloud_system: CloudSystem,
     bird_system: BirdSystem,
@@ -36,6 +38,7 @@ impl AnimationManager {
         Self {
             raindrop_system: RaindropSystem::new(term_width, term_height, RainIntensity::Light),
             snow_system: SnowSystem::new(term_width, term_height, SnowIntensity::Light),
+            fog_system: FogSystem::new(term_width, term_height, FogIntensity::Light),
             thunderstorm_system: ThunderstormSystem::new(term_width, term_height),
             cloud_system: CloudSystem::new(term_width, term_height),
             bird_system: BirdSystem::new(term_width, term_height),
@@ -57,6 +60,10 @@ impl AnimationManager {
 
     pub fn update_snow_intensity(&mut self, intensity: SnowIntensity) {
         self.snow_system.set_intensity(intensity);
+    }
+
+    pub fn update_fog_intensity(&mut self, intensity: FogIntensity) {
+        self.fog_system.set_intensity(intensity);
     }
 
     pub fn render_background(
@@ -159,6 +166,11 @@ impl AnimationManager {
         } else if conditions.is_snowing {
             self.snow_system.update(term_width, term_height);
             self.snow_system.render(renderer)?;
+        }
+
+        if conditions.is_foggy {
+            self.fog_system.update(term_width, term_height);
+            self.fog_system.render(renderer)?;
         }
 
         if self.show_leaves

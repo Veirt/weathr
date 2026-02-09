@@ -105,10 +105,12 @@ impl App {
                     Ok(weather) => {
                         let rain_intensity = weather.condition.rain_intensity();
                         let snow_intensity = weather.condition.snow_intensity();
+                        let fog_intensity = weather.condition.fog_intensity();
 
                         self.state.update_weather(weather);
                         self.animations.update_rain_intensity(rain_intensity);
                         self.animations.update_snow_intensity(snow_intensity);
+                        self.animations.update_fog_intensity(fog_intensity);
                     }
                     Err(e) => {
                         self.state

@@ -32,6 +32,7 @@ impl AppState {
         self.weather_conditions.is_raining =
             weather.condition.is_raining() && !self.weather_conditions.is_thunderstorm;
         self.weather_conditions.is_cloudy = weather.condition.is_cloudy();
+        self.weather_conditions.is_foggy = weather.condition.is_foggy();
         self.weather_conditions.is_day = weather.is_day;
 
         self.current_weather = Some(weather);

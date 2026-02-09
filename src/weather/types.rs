@@ -34,6 +34,13 @@ pub enum SnowIntensity {
     Heavy,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FogIntensity {
+    Light,
+    Medium,
+    Heavy,
+}
+
 impl WeatherCondition {
     pub fn rain_intensity(&self) -> RainIntensity {
         match self {
@@ -52,6 +59,13 @@ impl WeatherCondition {
             Self::SnowShowers => SnowIntensity::Medium,
             Self::Snow => SnowIntensity::Heavy,
             _ => SnowIntensity::Light,
+        }
+    }
+
+    pub fn fog_intensity(&self) -> FogIntensity {
+        match self {
+            Self::Fog => FogIntensity::Heavy,
+            _ => FogIntensity::Light,
         }
     }
 
@@ -77,6 +91,10 @@ impl WeatherCondition {
 
     pub fn is_cloudy(&self) -> bool {
         matches!(self, Self::PartlyCloudy | Self::Cloudy | Self::Overcast)
+    }
+
+    pub fn is_foggy(&self) -> bool {
+        matches!(self, Self::Fog)
     }
 }
 
@@ -179,6 +197,7 @@ pub struct WeatherConditions {
     pub is_snowing: bool,
     pub is_thunderstorm: bool,
     pub is_cloudy: bool,
+    pub is_foggy: bool,
     pub is_day: bool,
 }
 
@@ -189,6 +208,7 @@ impl Default for WeatherConditions {
             is_snowing: false,
             is_thunderstorm: false,
             is_cloudy: false,
+            is_foggy: false,
             is_day: true,
         }
     }
