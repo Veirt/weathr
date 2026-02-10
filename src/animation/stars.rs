@@ -29,14 +29,36 @@ impl StarSystem {
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
         let count = (terminal_width as usize * terminal_height as usize) / 80; // Density
         let mut stars = Vec::with_capacity(count);
+        const MIN_DISTANCE: f32 = 3.0; // Minimum distance between stars
 
         for _ in 0..count {
-            stars.push(Star {
-                x: rand::random::<u16>() % terminal_width,
-                y: rand::random::<u16>() % (terminal_height / 2), // Upper half
-                brightness: rand::random::<f32>(),
-                phase: rand::random::<f32>() * std::f32::consts::TAU,
-            });
+            let mut attempts = 0;
+            let max_attempts = 50;
+
+            loop {
+                let x = rand::random::<u16>() % terminal_width;
+                let y = rand::random::<u16>() % (terminal_height / 2); // Upper half
+
+                // Check if this position is far enough from existing stars
+                let too_close = stars.iter().any(|star: &Star| {
+                    let dx = (star.x as f32 - x as f32).abs();
+                    let dy = (star.y as f32 - y as f32).abs();
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    distance < MIN_DISTANCE
+                });
+
+                if !too_close || attempts >= max_attempts {
+                    stars.push(Star {
+                        x,
+                        y,
+                        brightness: rand::random::<f32>(),
+                        phase: rand::random::<f32>() * std::f32::consts::TAU,
+                    });
+                    break;
+                }
+
+                attempts += 1;
+            }
         }
 
         Self {
