@@ -241,6 +241,20 @@ impl App {
                 )?;
             }
 
+            let attribution = "Weather data by Open-Meteo.com";
+            let attribution_x = if term_width > attribution.len() as u16 {
+                term_width - attribution.len() as u16 - 2
+            } else {
+                0
+            };
+            let attribution_y = if term_height > 0 { term_height - 1 } else { 0 };
+            renderer.render_line_colored(
+                attribution_x,
+                attribution_y,
+                attribution,
+                crossterm::style::Color::DarkGrey,
+            )?;
+
             renderer.flush()?;
 
             if event::poll(FRAME_DURATION)? {

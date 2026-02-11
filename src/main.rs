@@ -20,8 +20,14 @@ use crossterm::{
 use render::TerminalRenderer;
 use std::{io, panic};
 
+const LONG_VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    "\n\nWeather data by Open-Meteo.com (https://open-meteo.com/)\n",
+    "Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
+);
+
 #[derive(Parser)]
-#[command(version, about = "Terminal-based ASCII weather application", long_about = None)]
+#[command(version, long_version = LONG_VERSION, about = "Terminal-based ASCII weather application", long_about = None)]
 struct Cli {
     #[arg(
         short,

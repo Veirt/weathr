@@ -184,6 +184,10 @@ GPL-3.0-or-later
 
 ## Credits
 
+### Weather Data
+
+Weather data provided by [Open-Meteo.com](https://open-meteo.com/) under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
+
 ### ASCII Art
 
 - **Source**: https://www.asciiart.eu/
