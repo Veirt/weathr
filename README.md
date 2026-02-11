@@ -8,12 +8,19 @@ A terminal weather app with ASCII animations driven by real-time weather data.
 
 Features real-time weather from Open-Meteo with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, and auto-location detection.
 
+## Demo
+
+|                 Thunderstorm Night                 |          Snow          |
+| :------------------------------------------------: | :--------------------: |
+| ![Thunderstorm Night](docs/thunderstorm-night.gif) | ![Snow](docs/snow.gif) |
+
 ## Contents
 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Privacy](#privacy)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Installation
@@ -164,6 +171,13 @@ When using `auto = true` in config or the `--auto-location` flag, the applicatio
 
 This is optional. You can disable auto-location and manually specify coordinates in your config file to avoid external API calls.
 
+## Roadmap
+
+- [ ] Support for OpenWeatherMap, WeatherAPI, etc.
+- [ ] Pre-built binaries for ARM64 arch.
+- [ ] Installation via AUR.
+- [ ] Key bindings for manual refresh, speed up animations, pause animations, and toggle HUD.
+
 ## License
 
 GPL-3.0-or-later
@@ -174,6 +188,7 @@ GPL-3.0-or-later
 
 - **Source**: https://www.asciiart.eu/
 - **House**: Joan G. Stark
+- **Airplane**: Joan G. Stark
 - **Sun**: Hayley Jane Wakenshaw (Flump)
 - **Moon**: Joan G. Stark
 
