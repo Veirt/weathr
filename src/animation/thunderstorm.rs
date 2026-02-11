@@ -34,7 +34,7 @@ pub struct ThunderstormSystem {
 impl ThunderstormSystem {
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
         Self {
-            bolts: VecDeque::new(),
+            bolts: VecDeque::with_capacity(MAX_BOLTS),
             state: LightningState::Idle,
             timer: 0,
             terminal_width,

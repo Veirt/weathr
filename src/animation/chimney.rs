@@ -58,7 +58,7 @@ pub struct ChimneySmoke {
 impl ChimneySmoke {
     pub fn new() -> Self {
         Self {
-            particles: Vec::new(),
+            particles: Vec::with_capacity(MAX_PARTICLES),
             spawn_counter: 0,
             spawn_rate: 8,
         }

@@ -24,8 +24,14 @@ pub struct SnowSystem {
 
 impl SnowSystem {
     pub fn new(terminal_width: u16, terminal_height: u16, intensity: SnowIntensity) -> Self {
+        let flakes_capacity = match intensity {
+            SnowIntensity::Light => (terminal_width / 4) as usize,
+            SnowIntensity::Medium => (terminal_width / 2) as usize,
+            SnowIntensity::Heavy => terminal_width as usize,
+        };
+
         let mut system = Self {
-            flakes: Vec::new(),
+            flakes: Vec::with_capacity(flakes_capacity),
             terminal_width,
             terminal_height,
             intensity,

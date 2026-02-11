@@ -70,8 +70,14 @@ pub struct FogSystem {
 
 impl FogSystem {
     pub fn new(terminal_width: u16, terminal_height: u16, intensity: FogIntensity) -> Self {
+        let wisps_capacity = match intensity {
+            FogIntensity::Light => (terminal_width as f32 * 0.3) as usize,
+            FogIntensity::Medium => (terminal_width as f32 * 0.6) as usize,
+            FogIntensity::Heavy => terminal_width as usize,
+        };
+
         Self {
-            wisps: VecDeque::new(),
+            wisps: VecDeque::with_capacity(wisps_capacity),
             terminal_width,
             terminal_height,
             intensity,

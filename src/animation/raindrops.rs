@@ -37,9 +37,16 @@ pub struct RaindropSystem {
 
 impl RaindropSystem {
     pub fn new(terminal_width: u16, terminal_height: u16, intensity: RainIntensity) -> Self {
+        let drops_capacity = match intensity {
+            RainIntensity::Drizzle => (terminal_width / 4) as usize,
+            RainIntensity::Light => (terminal_width / 2) as usize,
+            RainIntensity::Heavy => terminal_width as usize,
+            RainIntensity::Storm => (terminal_width as f32 * 1.5) as usize,
+        };
+
         let mut system = Self {
-            drops: Vec::new(),
-            splashes: VecDeque::new(),
+            drops: Vec::with_capacity(drops_capacity),
+            splashes: VecDeque::with_capacity(MAX_SPLASHES),
             new_splashes: VecDeque::with_capacity(20),
             terminal_width,
             terminal_height,

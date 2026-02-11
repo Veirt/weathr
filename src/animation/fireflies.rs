@@ -117,8 +117,10 @@ pub struct FireflySystem {
 
 impl FireflySystem {
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
+        let fireflies_capacity = std::cmp::max(3, terminal_width / 15) as usize;
+
         Self {
-            fireflies: Vec::new(),
+            fireflies: Vec::with_capacity(fireflies_capacity),
             terminal_width,
             terminal_height,
         }

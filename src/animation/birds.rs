@@ -21,7 +21,7 @@ pub struct BirdSystem {
 impl BirdSystem {
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
         Self {
-            birds: Vec::new(),
+            birds: Vec::with_capacity(3),
             terminal_width,
             terminal_height,
         }

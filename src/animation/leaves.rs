@@ -130,8 +130,10 @@ pub struct FallingLeaves {
 impl FallingLeaves {
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
         let mut rng = rand::rng();
-        let mut leaves = Vec::new();
         let initial_count = std::cmp::max(5, terminal_width / 10);
+
+        let max_capacity = std::cmp::max(10, terminal_width / 8) as usize;
+        let mut leaves = Vec::with_capacity(max_capacity);
 
         for _ in 0..initial_count {
             leaves.push(Leaf::new(terminal_width, false, &mut rng));

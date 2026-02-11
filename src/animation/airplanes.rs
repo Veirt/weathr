@@ -20,7 +20,7 @@ pub struct AirplaneSystem {
 impl AirplaneSystem {
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
         Self {
-            planes: Vec::new(),
+            planes: Vec::with_capacity(2),
             terminal_width,
             terminal_height,
             spawn_cooldown: 0,

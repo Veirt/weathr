@@ -37,9 +37,11 @@ impl CloudSystem {
 impl CloudSystem {
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
         let mut rng = rand::rng();
-        let mut clouds = Vec::new();
         // Add a few initial clouds
         let count = std::cmp::max(1, terminal_width / 20);
+
+        let max_capacity = (terminal_width / 20) as usize;
+        let mut clouds = Vec::with_capacity(max_capacity);
 
         for _ in 0..count {
             clouds.push(Self::create_random_cloud(
