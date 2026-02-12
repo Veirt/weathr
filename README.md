@@ -43,15 +43,24 @@ cargo install --path .
 
 ## Configuration
 
-The config file is at `~/.config/weathr/config.toml`.
+The config file location depends on your platform:
+
+- **Linux**: `~/.config/weathr/config.toml` (or `$XDG_CONFIG_HOME/weathr/config.toml`)
+- **macOS**: `~/Library/Application Support/weathr/config.toml`
+
+You can also place a `config.toml` in the current working directory, which takes priority over the default location.
 
 ### Setup
 
 ```bash
+# Linux
 mkdir -p ~/.config/weathr
+
+# macOS
+mkdir -p ~/Library/Application\ Support/weathr
 ```
 
-Edit `~/.config/weathr/config.toml`:
+Edit the config file at the appropriate path for your platform:
 
 ```toml
 # Hide the HUD (Heads Up Display) with weather details

@@ -128,8 +128,8 @@ async fn main() -> io::Result<()> {
             eprintln!("Error loading config: {}", e);
             eprintln!("\nAuto-detecting location via IP...");
             eprintln!("\nTo customize, create a config file at:");
-            eprintln!("  $XDG_CONFIG_HOME/weathr/config.toml");
-            eprintln!("  or ~/.config/weathr/config.toml");
+            eprintln!("  Linux: ~/.config/weathr/config.toml (or $XDG_CONFIG_HOME/weathr/config.toml)");
+            eprintln!("  macOS: ~/Library/Application Support/weathr/config.toml");
             eprintln!("\nExample config.toml:");
             eprintln!("  [location]");
             eprintln!("  latitude = 52.52");
