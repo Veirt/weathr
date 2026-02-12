@@ -13,6 +13,8 @@ pub struct Config {
     pub hide_hud: bool,
     #[serde(default)]
     pub units: WeatherUnits,
+    #[serde(default)]
+    pub silent: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -231,6 +233,7 @@ longitude = 0.0
             },
             hide_hud: false,
             units: WeatherUnits::default(),
+            silent: false,
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -248,6 +251,7 @@ longitude = 0.0
             },
             hide_hud: false,
             units: WeatherUnits::default(),
+            silent: false,
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -265,6 +269,7 @@ longitude = 0.0
             },
             hide_hud: false,
             units: WeatherUnits::default(),
+            silent: false,
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -282,6 +287,7 @@ longitude = 0.0
             },
             hide_hud: false,
             units: WeatherUnits::default(),
+            silent: false,
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -299,6 +305,7 @@ longitude = 0.0
             },
             hide_hud: false,
             units: WeatherUnits::default(),
+            silent: false,
         };
         let result = config.validate();
         assert!(result.is_ok());

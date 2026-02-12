@@ -26,6 +26,12 @@ const LONG_VERSION: &str = concat!(
     "Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
 );
 
+fn info(silent: bool, msg: &str) {
+    if !silent {
+        println!("{}", msg);
+    }
+}
+
 #[derive(Parser)]
 #[command(version, long_version = LONG_VERSION, about = "Terminal-based ASCII weather application", long_about = None)]
 struct Cli {
@@ -69,6 +75,9 @@ struct Cli {
         help = "Use metric units (°C, km/h, mm)"
     )]
     metric: bool,
+
+    #[arg(long, help = "Run silently (suppress non-error output)")]
+    silent: bool,
 }
 
 #[tokio::main]
@@ -156,21 +165,30 @@ async fn main() -> io::Result<()> {
     if cli.metric {
         config.units = weather::WeatherUnits::metric();
     }
+    if cli.silent {
+        config.silent = true;
+    }
 
     // Auto-detect location if enabled
     if config.location.auto {
-        println!("Auto-detecting location...");
+        info(config.silent, "Auto-detecting location...");
         match geolocation::detect_location().await {
             Ok(geo_loc) => {
                 if let Some(city) = &geo_loc.city {
-                    println!(
-                        "Location detected: {} ({:.4}, {:.4})",
-                        city, geo_loc.latitude, geo_loc.longitude
+                    info(
+                        config.silent,
+                        &format!(
+                            "Location detected: {} ({:.4}, {:.4})",
+                            city, geo_loc.latitude, geo_loc.longitude
+                        ),
                     );
                 } else {
-                    println!(
-                        "Location detected: {:.4}, {:.4}",
-                        geo_loc.latitude, geo_loc.longitude
+                    info(
+                        config.silent,
+                        &format!(
+                            "Location detected: {:.4}, {:.4}",
+                            geo_loc.latitude, geo_loc.longitude
+                        ),
                     );
                 }
                 config.location.latitude = geo_loc.latitude;
