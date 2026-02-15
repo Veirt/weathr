@@ -89,11 +89,13 @@ impl StarSystem {
     pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
         if terminal_width != self.terminal_width || terminal_height != self.terminal_height { // Fix stars not resizing
             self.stars = Self::create_stars(terminal_width, terminal_height, &self.stars);
+
+            self.terminal_width = terminal_width;
+            self.terminal_height = terminal_height;
+
             return;
         }
-    
-        self.terminal_width = terminal_width;
-        self.terminal_height = terminal_height;
+
 
         // Twinkle
         for star in &mut self.stars {
