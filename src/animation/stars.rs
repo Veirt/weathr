@@ -3,6 +3,7 @@ use crossterm::style::Color;
 use rand::prelude::*;
 use std::io;
 
+#[derive(Clone, Copy)]
 struct Star {
     x: u16,
     y: u16,
@@ -27,11 +28,30 @@ pub struct StarSystem {
 }
 
 impl StarSystem {
+    const MIN_DISTANCE: f32 = 3.0; // Minimum distance between stars
+
+
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
+
+        let stars = Self::create_stars(terminal_width, terminal_height, &vec![]);
+
+        Self {
+            stars,
+            shooting_star: None,
+            terminal_width,
+            terminal_height,
+        }
+    }
+
+    fn create_stars(terminal_width: u16, terminal_height: u16, inital_stars: &Vec<Star>) -> Vec<Star> {
         let mut rng = rand::rng();
         let count = (terminal_width as usize * terminal_height as usize) / 80; // Density
+
+        if count < inital_stars.len() { return inital_stars.clone(); }
+
         let mut stars = Vec::with_capacity(count);
-        const MIN_DISTANCE: f32 = 3.0; // Minimum distance between stars
+
+        stars.extend(inital_stars.iter().cloned());
 
         for _ in 0..count {
             let mut attempts = 0;
@@ -46,7 +66,7 @@ impl StarSystem {
                     let dx = (star.x as f32 - x as f32).abs();
                     let dy = (star.y as f32 - y as f32).abs();
                     let distance = (dx * dx + dy * dy).sqrt();
-                    distance < MIN_DISTANCE
+                    distance < Self::MIN_DISTANCE
                 });
 
                 if !too_close || attempts >= max_attempts {
@@ -63,15 +83,15 @@ impl StarSystem {
             }
         }
 
-        Self {
-            stars,
-            shooting_star: None,
-            terminal_width,
-            terminal_height,
-        }
+        stars
     }
 
     pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+        if terminal_width != self.terminal_width || terminal_height != self.terminal_height { // Fix stars not resizing
+            self.stars = Self::create_stars(terminal_width, terminal_height, &self.stars);
+            return;
+        }
+    
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
