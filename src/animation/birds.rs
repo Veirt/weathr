@@ -27,12 +27,19 @@ impl BirdSystem {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut impl Rng,
+        speed: f32,
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
         for bird in &mut self.birds {
-            bird.x += bird.speed;
+            // Scale position delta by speed multiplier to control animation rate
+            bird.x += bird.speed * speed;
             bird.flap_timer += 1;
             if bird.flap_timer > 5 {
                 bird.flap_state = !bird.flap_state;

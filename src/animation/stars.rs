@@ -71,20 +71,26 @@ impl StarSystem {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut impl Rng,
+        speed: f32,
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
-        // Twinkle
+        // Twinkle — scale phase increment by speed multiplier
         for star in &mut self.stars {
-            star.phase += 0.05;
+            star.phase += 0.05 * speed;
             star.brightness = (star.phase.sin() + 1.0) / 2.0; // 0.0 to 1.0
         }
 
         // Shooting Star Logic
         if let Some(ref mut star) = self.shooting_star {
-            star.x += star.speed_x;
-            star.y += star.speed_y;
+            star.x += star.speed_x * speed;
+            star.y += star.speed_y * speed;
 
             if star.x < 0.0 || star.y as u16 >= terminal_height || star.length == 0 {
                 self.shooting_star = None;

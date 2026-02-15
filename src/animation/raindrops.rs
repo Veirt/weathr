@@ -143,7 +143,13 @@ impl RaindropSystem {
         });
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut impl Rng,
+        speed: f32,
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -174,8 +180,9 @@ impl RaindropSystem {
         };
 
         self.drops.retain_mut(|drop| {
-            drop.y += drop.speed_y;
-            drop.x += drop.speed_x;
+            // Scale velocity by speed multiplier to control animation rate
+            drop.y += drop.speed_y * speed;
+            drop.x += drop.speed_x * speed;
 
             // Hit ground?
             if drop.y >= (terminal_height - 1) as f32 {

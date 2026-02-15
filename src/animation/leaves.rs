@@ -79,16 +79,17 @@ impl Leaf {
         }
     }
 
-    fn update(&mut self) {
-        self.y += self.fall_speed;
+    fn update(&mut self, speed: f32) {
+        // Scale position deltas by speed multiplier to control animation rate
+        self.y += self.fall_speed * speed;
 
-        self.sway_phase += self.sway_speed;
+        self.sway_phase += self.sway_speed * speed;
         if self.sway_phase > std::f32::consts::PI * 2.0 {
             self.sway_phase -= std::f32::consts::PI * 2.0;
         }
 
         let sway_offset = self.sway_phase.sin() * self.sway_amplitude;
-        self.x += sway_offset * 0.1;
+        self.x += sway_offset * 0.1 * speed;
 
         self.rotation = ((self.sway_phase * 2.0).sin() * 4.0) as u8;
     }
@@ -148,12 +149,18 @@ impl FallingLeaves {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut impl Rng,
+        speed: f32,
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
         for leaf in &mut self.leaves {
-            leaf.update();
+            leaf.update(speed);
         }
 
         self.leaves.retain(|l| !l.is_offscreen(terminal_height));

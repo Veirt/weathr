@@ -27,10 +27,11 @@ impl SmokeParticle {
         }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, speed: f32) {
         self.age += 1;
-        self.y -= 0.2;
-        self.x += self.drift;
+        // Scale velocity by speed multiplier to control animation rate
+        self.y -= 0.2 * speed;
+        self.x += self.drift * speed;
     }
 
     fn is_alive(&self) -> bool {
@@ -64,9 +65,9 @@ impl ChimneySmoke {
         }
     }
 
-    pub fn update(&mut self, chimney_x: u16, chimney_y: u16, rng: &mut impl Rng) {
+    pub fn update(&mut self, chimney_x: u16, chimney_y: u16, rng: &mut impl Rng, speed: f32) {
         for particle in &mut self.particles {
-            particle.update();
+            particle.update(speed);
         }
 
         self.particles.retain(|p| p.is_alive() && p.y >= 0.0);

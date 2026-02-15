@@ -162,6 +162,12 @@ weathr --imperial --auto-location
 
 - `q` or `Q` - Quit
 - `Ctrl+C` - Exit
+- `p` - Pause/resume animations
+- `+` or `=` - Speed up animations (0.25x increments, max 4.0x)
+- `-` - Slow down animations (0.25x decrements, min 0.25x)
+- `h` - Toggle HUD visibility
+- `r` - Refresh weather data
+- `?` - Toggle help overlay
 
 ### Environment Variables
 
@@ -190,7 +196,7 @@ This is optional. You can disable auto-location and manually specify coordinates
 
 - [ ] Support for OpenWeatherMap, WeatherAPI, etc.
 - [ ] Installation via AUR.
-- [ ] Key bindings for manual refresh, speed up animations, pause animations, and toggle HUD.
+- [x] Key bindings for manual refresh, speed up animations, pause animations, and toggle HUD.
 
 ## License
 

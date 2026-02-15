@@ -37,9 +37,10 @@ impl Firefly {
         }
     }
 
-    fn update(&mut self, terminal_width: u16, horizon_y: u16, rng: &mut impl Rng) {
-        self.x += self.vx;
-        self.y += self.vy;
+    fn update(&mut self, terminal_width: u16, horizon_y: u16, rng: &mut impl Rng, speed: f32) {
+        // Scale velocity by speed multiplier to control animation rate
+        self.x += self.vx * speed;
+        self.y += self.vy * speed;
 
         if rng.random::<f32>() < 0.02 {
             self.vx = (rng.random::<f32>() - 0.5) * 0.3;
@@ -63,7 +64,7 @@ impl Firefly {
             self.vy = -self.vy.abs(); // Bounce up
         }
 
-        self.glow_phase += self.glow_speed;
+        self.glow_phase += self.glow_speed * speed;
         if self.glow_phase > std::f32::consts::PI * 2.0 {
             self.glow_phase -= std::f32::consts::PI * 2.0;
         }
@@ -132,12 +133,13 @@ impl FireflySystem {
         terminal_height: u16,
         horizon_y: u16,
         rng: &mut impl Rng,
+        speed: f32,
     ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
         for firefly in &mut self.fireflies {
-            firefly.update(terminal_width, horizon_y, rng);
+            firefly.update(terminal_width, horizon_y, rng, speed);
         }
 
         let target_count = std::cmp::max(3, terminal_width / 15) as usize;

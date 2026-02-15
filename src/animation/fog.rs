@@ -48,8 +48,9 @@ impl FogWisp {
         }
     }
 
-    fn update(&mut self) {
-        self.x += self.speed_x;
+    fn update(&mut self, speed: f32) {
+        // Scale position delta by speed multiplier to control animation rate
+        self.x += self.speed_x * speed;
         self.lifetime += 1;
     }
 
@@ -89,12 +90,18 @@ impl FogSystem {
         self.intensity = intensity;
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut impl Rng,
+        speed: f32,
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
         for wisp in &mut self.wisps {
-            wisp.update();
+            wisp.update(speed);
         }
 
         self.wisps.retain(|w| w.is_alive(terminal_width));

@@ -103,7 +103,16 @@ impl ThunderstormSystem {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    // `speed` parameter unused: lightning timing is state-machine driven with
+    // randomized intervals (next_strike_in, flash duration). Scaling these would
+    // make lightning feel artificial. Parameter exists for API consistency.
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut impl Rng,
+        _speed: f32,
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 

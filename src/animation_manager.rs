@@ -73,6 +73,7 @@ impl AnimationManager {
         self.fog_system.set_intensity(intensity);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render_background(
         &mut self,
         renderer: &mut TerminalRenderer,
@@ -81,20 +82,22 @@ impl AnimationManager {
         term_width: u16,
         term_height: u16,
         mut rng: &mut impl rand::Rng,
+        speed: f32,
     ) -> io::Result<()> {
         // Calculate horizon_y early so it's available for all systems
         let ground_height = WorldScene::GROUND_HEIGHT;
         let horizon_y = term_height.saturating_sub(ground_height);
 
         if !conditions.is_day {
-            self.star_system.update(term_width, term_height, &mut rng);
+            self.star_system
+                .update(term_width, term_height, &mut rng, speed);
             self.star_system.render(renderer)?;
             self.moon_system.update(term_width, term_height);
             self.moon_system.render(renderer)?;
 
             if state.should_show_fireflies() {
                 self.firefly_system
-                    .update(term_width, term_height, horizon_y, &mut rng);
+                    .update(term_width, term_height, horizon_y, &mut rng, speed);
                 self.firefly_system.render(renderer)?;
             }
         }
@@ -104,7 +107,8 @@ impl AnimationManager {
             && !conditions.is_snowing
             && conditions.is_day
         {
-            self.bird_system.update(term_width, term_height, &mut rng);
+            self.bird_system
+                .update(term_width, term_height, &mut rng, speed);
             self.bird_system.render(renderer)?;
         }
 
@@ -133,8 +137,14 @@ impl AnimationManager {
 
             if conditions.is_cloudy || is_clear {
                 self.cloud_system.set_cloud_color(is_clear);
-                self.cloud_system
-                    .update(term_width, term_height, is_clear, cloud_color, &mut rng);
+                self.cloud_system.update(
+                    term_width,
+                    term_height,
+                    is_clear,
+                    cloud_color,
+                    &mut rng,
+                    speed,
+                );
                 self.cloud_system.render(renderer)?;
             }
         }
@@ -145,7 +155,7 @@ impl AnimationManager {
             && !conditions.is_foggy
         {
             self.airplane_system
-                .update(term_width, term_height, &mut rng);
+                .update(term_width, term_height, &mut rng, speed);
             self.airplane_system.render(renderer)?;
         }
 
@@ -159,6 +169,7 @@ impl AnimationManager {
         term_width: u16,
         term_height: u16,
         mut rng: &mut impl rand::Rng,
+        speed: f32,
     ) -> io::Result<()> {
         if conditions.is_raining || conditions.is_thunderstorm {
             return Ok(());
@@ -172,7 +183,8 @@ impl AnimationManager {
         let chimney_x = house_x + House::CHIMNEY_X_OFFSET;
         let chimney_y = house_y;
 
-        self.chimney_smoke.update(chimney_x, chimney_y, &mut rng);
+        self.chimney_smoke
+            .update(chimney_x, chimney_y, &mut rng, speed);
         self.chimney_smoke.render(renderer)?;
 
         Ok(())
@@ -185,14 +197,15 @@ impl AnimationManager {
         term_width: u16,
         term_height: u16,
         mut rng: &mut impl rand::Rng,
+        speed: f32,
     ) -> io::Result<()> {
         if conditions.is_thunderstorm {
             self.raindrop_system
-                .update(term_width, term_height, &mut rng);
+                .update(term_width, term_height, &mut rng, speed);
             self.raindrop_system.render(renderer)?;
 
             self.thunderstorm_system
-                .update(term_width, term_height, &mut rng);
+                .update(term_width, term_height, &mut rng, speed);
             self.thunderstorm_system.render(renderer)?;
 
             if self.thunderstorm_system.is_flashing() {
@@ -200,15 +213,17 @@ impl AnimationManager {
             }
         } else if conditions.is_raining {
             self.raindrop_system
-                .update(term_width, term_height, &mut rng);
+                .update(term_width, term_height, &mut rng, speed);
             self.raindrop_system.render(renderer)?;
         } else if conditions.is_snowing {
-            self.snow_system.update(term_width, term_height, &mut rng);
+            self.snow_system
+                .update(term_width, term_height, &mut rng, speed);
             self.snow_system.render(renderer)?;
         }
 
         if conditions.is_foggy {
-            self.fog_system.update(term_width, term_height, &mut rng);
+            self.fog_system
+                .update(term_width, term_height, &mut rng, speed);
             self.fog_system.render(renderer)?;
         }
 
@@ -218,18 +233,20 @@ impl AnimationManager {
             && !conditions.is_snowing
         {
             self.falling_leaves
-                .update(term_width, term_height, &mut rng);
+                .update(term_width, term_height, &mut rng, speed);
             self.falling_leaves.render(renderer)?;
         }
 
         Ok(())
     }
 
-    pub fn update_sunny_animation(&mut self, conditions: &WeatherConditions) {
+    pub fn update_sunny_animation(&mut self, conditions: &WeatherConditions, speed: f32) {
+        // Scale frame delay inversely with speed: higher speed = shorter delay
+        let scaled_delay = FRAME_DELAY.div_f32(speed.max(0.25));
         if !conditions.is_raining
             && !conditions.is_thunderstorm
             && !conditions.is_snowing
-            && self.last_frame_time.elapsed() >= FRAME_DELAY
+            && self.last_frame_time.elapsed() >= scaled_delay
         {
             self.animation_controller.next_frame(&self.sunny_animation);
             self.last_frame_time = Instant::now();

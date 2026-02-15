@@ -96,7 +96,13 @@ impl SnowSystem {
         });
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut impl Rng,
+        speed: f32,
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -118,11 +124,12 @@ impl SnowSystem {
         }
 
         self.flakes.retain_mut(|flake| {
-            flake.y += flake.speed_y;
+            // Scale velocity by speed multiplier to control animation rate
+            flake.y += flake.speed_y * speed;
 
             // Add horizontal sway
             let sway = (flake.y * 0.2 + flake.sway_offset).sin() * 0.05;
-            flake.x += flake.speed_x + sway;
+            flake.x += (flake.speed_x + sway) * speed;
 
             // Hit ground or out of bounds
             if flake.y >= (terminal_height - 1) as f32 {

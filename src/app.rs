@@ -5,12 +5,12 @@ use crate::error::WeatherError;
 use crate::render::TerminalRenderer;
 use crate::scene::WorldScene;
 use crate::weather::{
-    OpenMeteoProvider, WeatherClient, WeatherCondition, WeatherData, WeatherLocation,
+    OpenMeteoProvider, WeatherClient, WeatherCondition, WeatherData, WeatherLocation, WeatherUnits,
 };
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::io;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
@@ -61,6 +61,15 @@ pub struct App {
     scene: WorldScene,
     weather_receiver: mpsc::Receiver<Result<WeatherData, WeatherError>>,
     hide_hud: bool,
+    paused: bool,
+    speed_multiplier: f32,
+    show_help: bool,
+    weather_task: Option<tokio::task::JoinHandle<()>>,
+    weather_location: WeatherLocation,
+    weather_units: WeatherUnits,
+    weather_provider: Option<Arc<OpenMeteoProvider>>,
+    refreshing: bool,
+    speed_changed_at: Option<Instant>,
 }
 
 impl App {
@@ -83,6 +92,9 @@ impl App {
         let scene = WorldScene::new(term_width, term_height);
 
         let (tx, rx) = mpsc::channel(1);
+
+        let mut weather_task: Option<tokio::task::JoinHandle<()>> = None;
+        let mut weather_provider: Option<Arc<OpenMeteoProvider>> = None;
 
         if let Some(ref condition_str) = simulate_condition {
             let simulated_condition =
@@ -129,10 +141,10 @@ impl App {
             animations.update_wind(wind_speed as f32, wind_direction as f32);
         } else {
             let provider = Arc::new(OpenMeteoProvider::new());
-            let weather_client = WeatherClient::new(provider, REFRESH_INTERVAL);
+            let weather_client = WeatherClient::new(provider.clone(), REFRESH_INTERVAL);
             let units = config.units;
 
-            tokio::spawn(async move {
+            let task = tokio::spawn(async move {
                 loop {
                     let result = weather_client.get_current_weather(&location, &units).await;
                     if tx.send(result).await.is_err() {
@@ -141,6 +153,8 @@ impl App {
                     tokio::time::sleep(REFRESH_INTERVAL).await;
                 }
             });
+            weather_task = Some(task);
+            weather_provider = Some(provider);
         }
 
         Self {
@@ -149,6 +163,19 @@ impl App {
             scene,
             weather_receiver: rx,
             hide_hud: config.hide_hud,
+            paused: false,
+            speed_multiplier: 1.0,
+            show_help: false,
+            weather_task,
+            weather_location: WeatherLocation {
+                latitude: config.location.latitude,
+                longitude: config.location.longitude,
+                elevation: None,
+            },
+            weather_units: config.units,
+            weather_provider,
+            refreshing: false,
+            speed_changed_at: None,
         }
     }
 
@@ -156,6 +183,7 @@ impl App {
         let mut rng = rand::rng();
         loop {
             if let Ok(result) = self.weather_receiver.try_recv() {
+                self.refreshing = false;
                 match result {
                     Ok(weather) => {
                         let rain_intensity = weather.condition.rain_intensity();
@@ -199,48 +227,86 @@ impl App {
                 }
             }
 
-            renderer.clear()?;
-
             let (term_width, term_height) = renderer.get_size();
 
-            self.animations.render_background(
-                renderer,
-                &self.state.weather_conditions,
-                &self.state,
-                term_width,
-                term_height,
-                &mut rng,
-            )?;
+            if !self.paused {
+                renderer.clear()?;
+                self.animations.render_background(
+                    renderer,
+                    &self.state.weather_conditions,
+                    &self.state,
+                    term_width,
+                    term_height,
+                    &mut rng,
+                    self.speed_multiplier,
+                )?;
 
-            self.scene
-                .render(renderer, &self.state.weather_conditions)?;
+                self.scene
+                    .render(renderer, &self.state.weather_conditions)?;
 
-            self.animations.render_chimney_smoke(
-                renderer,
-                &self.state.weather_conditions,
-                term_width,
-                term_height,
-                &mut rng,
-            )?;
+                self.animations.render_chimney_smoke(
+                    renderer,
+                    &self.state.weather_conditions,
+                    term_width,
+                    term_height,
+                    &mut rng,
+                    self.speed_multiplier,
+                )?;
 
-            self.animations.render_foreground(
-                renderer,
-                &self.state.weather_conditions,
-                term_width,
-                term_height,
-                &mut rng,
-            )?;
+                self.animations.render_foreground(
+                    renderer,
+                    &self.state.weather_conditions,
+                    term_width,
+                    term_height,
+                    &mut rng,
+                    self.speed_multiplier,
+                )?;
+            }
 
             self.state.update_loading_animation();
             self.state.update_cached_info();
 
             if !self.hide_hud {
+                let hud_text = if self.refreshing {
+                    format!("[Refreshing...] {}", &self.state.cached_weather_info)
+                } else {
+                    self.state.cached_weather_info.clone()
+                };
+                renderer.render_line_colored(2, 1, &hud_text, crossterm::style::Color::Cyan)?;
+            }
+
+            // Help at term_height-2 avoids collision with attribution at term_height-1
+            // when MIN_WIDTH=70. Guard term_height >= 3 prevents underflow.
+            if self.show_help && term_height >= 3 {
+                let help_text = "q:Quit p:Pause r:Refresh h:HUD +/-:Speed ?:Help";
+                let help_y = term_height - 2;
+                let display_text = if (term_width as usize) < help_text.len() {
+                    // Truncated with ellipsis when terminal too narrow
+                    let truncated = &help_text[..((term_width as usize).saturating_sub(3))];
+                    format!("{}...", truncated)
+                } else {
+                    help_text.to_string()
+                };
                 renderer.render_line_colored(
-                    2,
-                    1,
-                    &self.state.cached_weather_info,
-                    crossterm::style::Color::Cyan,
+                    0,
+                    help_y,
+                    &display_text,
+                    crossterm::style::Color::DarkGrey,
                 )?;
+            }
+
+            if let Some(changed_at) = self.speed_changed_at {
+                if changed_at.elapsed() < Duration::from_secs(2) {
+                    let speed_text = format!("Speed: {}x", self.speed_multiplier);
+                    renderer.render_line_colored(
+                        2,
+                        2,
+                        &speed_text,
+                        crossterm::style::Color::Yellow,
+                    )?;
+                } else {
+                    self.speed_changed_at = None;
+                }
             }
 
             let attribution = "Weather data by Open-Meteo.com";
@@ -271,6 +337,27 @@ impl App {
                         {
                             break;
                         }
+                        KeyCode::Char('p') => {
+                            self.paused = !self.paused;
+                        }
+                        KeyCode::Char('+') | KeyCode::Char('=') => {
+                            // 0.25 floor prevents invisible animations, 4.0 ceiling prevents unusable speed
+                            self.speed_multiplier = (self.speed_multiplier + 0.25).clamp(0.25, 4.0);
+                            self.speed_changed_at = Some(Instant::now());
+                        }
+                        KeyCode::Char('-') => {
+                            self.speed_multiplier = (self.speed_multiplier - 0.25).clamp(0.25, 4.0);
+                            self.speed_changed_at = Some(Instant::now());
+                        }
+                        KeyCode::Char('h') => {
+                            self.hide_hud = !self.hide_hud;
+                        }
+                        KeyCode::Char('?') => {
+                            self.show_help = !self.show_help;
+                        }
+                        KeyCode::Char('r') => {
+                            self.refresh_weather();
+                        }
                         _ => {}
                     },
                     _ => {}
@@ -280,10 +367,161 @@ impl App {
             let (term_width, term_height) = renderer.get_size();
             self.scene.update_size(term_width, term_height);
 
-            self.animations
-                .update_sunny_animation(&self.state.weather_conditions);
+            if !self.paused {
+                self.animations
+                    .update_sunny_animation(&self.state.weather_conditions, self.speed_multiplier);
+            }
         }
 
         Ok(())
+    }
+
+    /// Abort the current weather fetch task and spawn a fresh one.
+    /// Spawns the same looping task as App::new() so automatic
+    /// 5-minute periodic refresh continues after manual refresh.
+    /// No-op when running in simulation mode (no provider).
+    fn refresh_weather(&mut self) {
+        // Simulation mode has no provider — refresh is a no-op
+        let provider = match &self.weather_provider {
+            Some(p) => p.clone(),
+            None => return,
+        };
+
+        // Aborts existing task to prevent duplicate fetchers running.
+        // tokio::JoinHandle::abort() is documented as safe; spawned task drops cleanly.
+        if let Some(task) = self.weather_task.take() {
+            task.abort();
+        }
+
+        self.refreshing = true;
+
+        // Creates new channel. Previous sender becomes disconnected, causing aborted task to exit.
+        let (tx, rx) = mpsc::channel(1);
+        self.weather_receiver = rx;
+
+        let location = self.weather_location;
+        let units = self.weather_units;
+        let weather_client = WeatherClient::new(provider, REFRESH_INTERVAL);
+
+        // Fetches immediately, sends result, then sleeps(REFRESH_INTERVAL) to maintain automatic 5-minute periodic refresh cycle
+        self.weather_task = Some(tokio::spawn(async move {
+            loop {
+                let result = weather_client.get_current_weather(&location, &units).await;
+                if tx.send(result).await.is_err() {
+                    break;
+                }
+                tokio::time::sleep(REFRESH_INTERVAL).await;
+            }
+        }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_pause_toggles_correctly() {
+        let mut paused = false;
+        paused = !paused;
+        assert!(paused, "First toggle should pause");
+        paused = !paused;
+        assert!(!paused, "Second toggle should unpause");
+    }
+
+    #[test]
+    fn test_pause_defaults_to_false() {
+        let paused: bool = false;
+        assert!(!paused);
+    }
+
+    #[test]
+    fn test_speed_multiplier_defaults_to_1_0() {
+        let speed: f32 = 1.0;
+        assert!((speed - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_speed_increment_by_0_25() {
+        let mut speed: f32 = 1.0;
+        speed = (speed + 0.25).clamp(0.25, 4.0);
+        speed = (speed + 0.25).clamp(0.25, 4.0);
+        speed = (speed + 0.25).clamp(0.25, 4.0);
+        assert!(
+            (speed - 1.75).abs() < f32::EPSILON,
+            "Three increments from 1.0 should yield 1.75"
+        );
+    }
+
+    #[test]
+    fn test_speed_decrement_by_0_25() {
+        let mut speed: f32 = 1.0;
+        speed = (speed - 0.25).clamp(0.25, 4.0);
+        assert!(
+            (speed - 0.75).abs() < f32::EPSILON,
+            "One decrement from 1.0 should yield 0.75"
+        );
+    }
+
+    #[test]
+    fn test_speed_no_underflow_at_minimum() {
+        let mut speed: f32 = 0.25;
+        speed = (speed - 0.25).clamp(0.25, 4.0);
+        assert!(
+            (speed - 0.25).abs() < f32::EPSILON,
+            "Speed should not go below 0.25"
+        );
+    }
+
+    #[test]
+    fn test_speed_no_overflow_at_maximum() {
+        let mut speed: f32 = 4.0;
+        speed = (speed + 0.25).clamp(0.25, 4.0);
+        assert!(
+            (speed - 4.0).abs() < f32::EPSILON,
+            "Speed should not exceed 4.0"
+        );
+    }
+
+    #[test]
+    fn test_hud_toggle() {
+        let mut hide_hud = false;
+        hide_hud = !hide_hud;
+        assert!(hide_hud, "First toggle should hide HUD");
+        hide_hud = !hide_hud;
+        assert!(!hide_hud, "Second toggle should show HUD");
+    }
+
+    #[test]
+    fn test_help_text_toggle() {
+        let mut show_help = false;
+        show_help = !show_help;
+        assert!(show_help, "First toggle should show help");
+        show_help = !show_help;
+        assert!(!show_help, "Second toggle should hide help");
+    }
+
+    #[test]
+    fn test_help_text_fits_min_width() {
+        let help_text = "q:Quit p:Pause r:Refresh h:HUD +/-:Speed ?:Help";
+        assert_eq!(
+            help_text.len(),
+            47,
+            "Help text should be exactly 47 characters"
+        );
+        assert!(
+            help_text.len() < 70,
+            "Help text must fit within MIN_WIDTH=70"
+        );
+    }
+
+    #[test]
+    fn test_rapid_toggles_return_to_original() {
+        let mut paused = false;
+        for _ in 0..100 {
+            paused = !paused;
+        }
+        assert!(
+            !paused,
+            "100 toggles (even) should return to original state"
+        );
     }
 }

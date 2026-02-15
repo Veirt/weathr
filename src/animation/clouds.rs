@@ -128,12 +128,14 @@ impl CloudSystem {
         is_clear: bool,
         cloud_color: Color,
         rng: &mut impl Rng,
+        speed: f32,
     ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
         for cloud in &mut self.clouds {
-            cloud.x += cloud.speed;
+            // Scale scroll speed by speed multiplier to control animation rate
+            cloud.x += cloud.speed * speed;
         }
 
         self.clouds.retain(|c| c.x < terminal_width as f32);
