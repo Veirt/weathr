@@ -3,6 +3,7 @@ pub mod cache;
 pub mod config;
 pub mod error;
 pub mod geolocation;
+pub mod onboard;
 pub mod render;
 pub mod scene;
 pub mod weather;

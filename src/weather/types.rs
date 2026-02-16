@@ -166,7 +166,7 @@ pub struct WeatherData {
     pub timestamp: String,
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct WeatherUnits {
     pub temperature: TemperatureUnit,

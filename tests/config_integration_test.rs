@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Write;
-use weathr::config::Config;
+use weathr::config::{Config, Location};
+use weathr::weather::types::{PrecipitationUnit, TemperatureUnit, WeatherUnits, WindSpeedUnit};
 
 #[test]
 fn test_config_integration_load_valid_file() {
@@ -114,4 +115,66 @@ fn test_config_integration_extra_whitespace() {
     assert_eq!(config.location.longitude, 2.3522);
 
     fs::remove_file(test_config_path).ok();
+}
+
+#[test]
+fn test_config_integration_save_and_reload() {
+    let config = Config {
+        location: Location {
+            latitude: -33.8688,
+            longitude: 151.2093,
+            auto: true,
+            hide: false,
+        },
+        hide_hud: false,
+        units: WeatherUnits {
+            temperature: TemperatureUnit::Celsius,
+            wind_speed: WindSpeedUnit::Ms,
+            precipitation: PrecipitationUnit::Mm,
+        },
+        silent: false,
+    };
+
+    let temp_dir = std::env::temp_dir();
+    let path = temp_dir.join("weathr_integration_save.toml");
+
+    config.save(&path).expect("Failed to save config");
+
+    let loaded = Config::load_from_path(&path).expect("Failed to reload saved config");
+    assert_eq!(loaded.location.latitude, -33.8688);
+    assert_eq!(loaded.location.longitude, 151.2093);
+    assert!(loaded.location.auto);
+    assert_eq!(loaded.units.wind_speed, WindSpeedUnit::Ms);
+
+    fs::remove_file(path).ok();
+}
+
+#[test]
+fn test_config_integration_save_imperial_units() {
+    let config = Config {
+        location: Location {
+            latitude: 40.7128,
+            longitude: -74.0060,
+            auto: false,
+            hide: true,
+        },
+        hide_hud: true,
+        units: WeatherUnits::imperial(),
+        silent: true,
+    };
+
+    let temp_dir = std::env::temp_dir();
+    let path = temp_dir.join("weathr_integration_save_imperial.toml");
+
+    config.save(&path).expect("Failed to save config");
+
+    let loaded = Config::load_from_path(&path).expect("Failed to reload saved config");
+    assert_eq!(loaded.units.temperature, TemperatureUnit::Fahrenheit);
+    assert_eq!(loaded.units.wind_speed, WindSpeedUnit::Mph);
+    assert_eq!(loaded.units.precipitation, PrecipitationUnit::Inch);
+    assert!(loaded.hide_hud);
+    assert!(loaded.silent);
+    assert!(loaded.location.hide);
+
+    fs::remove_file(path).ok();
 }
