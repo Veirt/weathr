@@ -1,4 +1,5 @@
-use weathr::error::{ConfigError, GeolocationError, NetworkError, TerminalError};
+use serde::ser::Error as _;
+use weathr::error::{ConfigError, GeolocationError, NetworkError, OnboardError, TerminalError};
 
 #[test]
 fn test_config_error_kind() {
@@ -121,4 +122,44 @@ fn test_geolocation_error_all_network_variants() {
     assert!(msg.contains("5s"));
     assert!(!msg.contains("Network error:"));
     assert!(!msg.contains("Cannot auto-detect location:"));
+}
+
+#[test]
+fn test_config_error_new_variants_kind() {
+    let error = ConfigError::SerializeError(toml::ser::Error::custom("test"));
+    assert_eq!(error.kind(), "SerializeError");
+
+    let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+    let error = ConfigError::WriteError {
+        path: "/tmp/test".to_string(),
+        source: io_err,
+    };
+    assert_eq!(error.kind(), "WriteError");
+    assert!(error.to_string().contains("/tmp/test"));
+}
+
+#[test]
+fn test_onboard_error_display() {
+    let error = OnboardError::Cancelled;
+    assert!(error.to_string().contains("cancelled"));
+
+    let error = OnboardError::NoGeocodingResults("Atlantis".to_string());
+    assert!(error.to_string().contains("Atlantis"));
+
+    let error = OnboardError::PromptError("stdin closed".to_string());
+    assert!(error.to_string().contains("stdin closed"));
+
+    let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+    let error = OnboardError::CreateDirError {
+        path: "/root/weathr".to_string(),
+        source: io_err,
+    };
+    assert!(error.to_string().contains("/root/weathr"));
+}
+
+#[test]
+fn test_onboard_error_from_config_error() {
+    let config_err = ConfigError::NoConfigDir;
+    let onboard_err: OnboardError = config_err.into();
+    assert!(onboard_err.to_string().contains("config directory"));
 }

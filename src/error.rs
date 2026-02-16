@@ -136,8 +136,18 @@ pub enum ConfigError {
         source: io::Error,
     },
 
+    #[error("failed to write config file at {path}")]
+    WriteError {
+        path: String,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("invalid TOML syntax in config file")]
     ParseError(#[from] toml::de::Error),
+
+    #[error("failed to serialize config")]
+    SerializeError(#[from] toml::ser::Error),
 
     #[error("could not determine config directory (check $XDG_CONFIG_HOME or $HOME)")]
     NoConfigDir,
@@ -157,7 +167,9 @@ impl ConfigError {
     pub fn kind(&self) -> &str {
         match self {
             ConfigError::ReadError { .. } => "ReadError",
+            ConfigError::WriteError { .. } => "WriteError",
             ConfigError::ParseError(_) => "ParseError",
+            ConfigError::SerializeError(_) => "SerializeError",
             ConfigError::NoConfigDir => "NoConfigDir",
             ConfigError::InvalidLatitude(_) => "InvalidLatitude",
             ConfigError::InvalidLongitude(_) => "InvalidLongitude",
@@ -281,4 +293,29 @@ impl GeolocationError {
             }
         }
     }
+}
+
+#[derive(ThisError, Debug)]
+pub enum OnboardError {
+    #[error("failed to create config directory: {path}")]
+    CreateDirError {
+        path: String,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("{0}")]
+    Config(#[from] ConfigError),
+
+    #[error("geocoding search failed")]
+    GeocodingError(#[source] NetworkError),
+
+    #[error("no results found for \"{0}\"")]
+    NoGeocodingResults(String),
+
+    #[error("user cancelled the setup")]
+    Cancelled,
+
+    #[error("interactive prompt error: {0}")]
+    PromptError(String),
 }

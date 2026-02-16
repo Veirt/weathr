@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -9,7 +9,7 @@ use crate::weather::types::WeatherUnits;
 pub const ENV_LATITUDE: &str = "WEATHR_LATITUDE";
 pub const ENV_LONGITUDE: &str = "WEATHR_LONGITUDE";
 
-#[derive(Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LocationDisplay {
     #[default]
@@ -18,7 +18,7 @@ pub enum LocationDisplay {
     Mixed,
 }
 
-#[derive(Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Config {
     #[serde(default)]
     pub location: Location,
@@ -30,7 +30,7 @@ pub struct Config {
     pub silent: bool,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Location {
     #[serde(default = "default_latitude")]
     pub latitude: f64,
@@ -128,7 +128,7 @@ impl Config {
         Ok(())
     }
 
-    fn validate(&self) -> Result<(), ConfigError> {
+    pub fn validate(&self) -> Result<(), ConfigError> {
         if self.location.latitude < -90.0 || self.location.latitude > 90.0 {
             return Err(ConfigError::InvalidLatitude(self.location.latitude));
         }
@@ -165,12 +165,28 @@ impl Config {
         toml::Value::try_into(value).map_err(ConfigError::ParseError)
     }
 
-    fn get_config_path() -> Result<PathBuf, ConfigError> {
-        let config_dir = dirs::config_dir()
-            .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
-            .ok_or(ConfigError::NoConfigDir)?;
+    pub fn get_config_dir() -> Result<PathBuf, ConfigError> {
+        let config_dir = if let Ok(xdg_config) = std::env::var("XDG_CONFIG_HOME") {
+            PathBuf::from(xdg_config)
+        } else {
+            dirs::config_dir()
+                .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
+                .ok_or(ConfigError::NoConfigDir)?
+        };
 
-        Ok(config_dir.join("weathr").join("config.toml"))
+        Ok(config_dir.join("weathr"))
+    }
+
+    pub fn get_config_path() -> Result<PathBuf, ConfigError> {
+        Ok(Self::get_config_dir()?.join("config.toml"))
+    }
+
+    pub fn save(&self, path: &PathBuf) -> Result<(), ConfigError> {
+        let content = toml::to_string_pretty(self).map_err(ConfigError::SerializeError)?;
+        fs::write(path, content).map_err(|e| ConfigError::WriteError {
+            path: path.display().to_string(),
+            source: e,
+        })
     }
 }
 
@@ -675,5 +691,80 @@ auto = false
             env::remove_var("WEATHR_LATITUDE");
             env::remove_var("WEATHR_LONGITUDE");
         }
+    }
+
+    #[test]
+    fn test_config_save_round_trip() {
+        let config = Config {
+            location: Location {
+                latitude: 40.7128,
+                longitude: -74.0060,
+                auto: false,
+                hide: true,
+                ..Default::default()
+            },
+            hide_hud: true,
+            units: WeatherUnits {
+                temperature: crate::weather::types::TemperatureUnit::Fahrenheit,
+                wind_speed: crate::weather::types::WindSpeedUnit::Mph,
+                precipitation: crate::weather::types::PrecipitationUnit::Inch,
+            },
+            silent: true,
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("weathr_test_save_roundtrip.toml");
+
+        config.save(&path).unwrap();
+        let loaded = Config::load_from_path(&path).unwrap();
+
+        assert_eq!(loaded.location.latitude, 40.7128);
+        assert_eq!(loaded.location.longitude, -74.0060);
+        assert!(!loaded.location.auto);
+        assert!(loaded.location.hide);
+        assert!(loaded.hide_hud);
+        assert!(loaded.silent);
+        assert_eq!(
+            loaded.units.temperature,
+            crate::weather::types::TemperatureUnit::Fahrenheit
+        );
+        assert_eq!(
+            loaded.units.wind_speed,
+            crate::weather::types::WindSpeedUnit::Mph
+        );
+        assert_eq!(
+            loaded.units.precipitation,
+            crate::weather::types::PrecipitationUnit::Inch
+        );
+
+        fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn test_config_save_default_round_trip() {
+        let config = Config::default();
+
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("weathr_test_save_default.toml");
+
+        config.save(&path).unwrap();
+        let loaded = Config::load_from_path(&path).unwrap();
+
+        assert_eq!(loaded.location.latitude, config.location.latitude);
+        assert_eq!(loaded.location.longitude, config.location.longitude);
+        assert_eq!(loaded.location.auto, config.location.auto);
+        assert_eq!(loaded.hide_hud, config.hide_hud);
+        assert_eq!(loaded.silent, config.silent);
+
+        fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn test_config_save_to_invalid_path() {
+        let config = Config::default();
+        let path = PathBuf::from("/nonexistent_dir_12345/config.toml");
+        let result = config.save(&path);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), "WriteError");
     }
 }
