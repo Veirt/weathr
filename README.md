@@ -189,7 +189,7 @@ This is optional. You can disable auto-location and manually specify coordinates
 ## Roadmap
 
 - [ ] Support for OpenWeatherMap, WeatherAPI, etc.
-- [ ] Installation via AUR.
+- [x] Installation via AUR.
 - [ ] Key bindings for manual refresh, speed up animations, pause animations, and toggle HUD.
 
 ## License
