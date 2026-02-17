@@ -15,37 +15,12 @@
         "aarch64-darwin"
         "x86_64-darwin"
       ];
-      perSystem =
-        {
-          config,
-          self',
-          inputs',
-          pkgs,
-          ...
-        }:
-        let
-          package = pkgs.rustPlatform.buildRustPackage {
-            pname = "weathr";
-            version = "1.3.0";
-            src = ./.;
-            cargoLock.lockFile = ./Cargo.lock;
 
-            # skip tests (network integration tests can't be completed inside nix build sandbox environment)
-            doCheck = false;
-          };
-        in
-        {
-          packages.default = package;
+      imports = [
+        ./nix/package.nix
+        ./nix/shell.nix
+        ./nix/hm-module.nix
+      ];
 
-          devShells.default = pkgs.mkShell {
-            inputsFrom = [ package ];
-            packages = with pkgs; [
-              rustc
-              cargo
-              rust-analyzer
-              rustfmt
-            ];
-          };
-        };
     };
 }
