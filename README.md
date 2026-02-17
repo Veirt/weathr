@@ -6,7 +6,7 @@
 
 A terminal weather app with ASCII animations driven by real-time weather data.
 
-Features real-time weather from Open-Meteo with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, and auto-location detection.
+Features real-time weather from Open-Meteo with animated rain, snow, thunderstorms, flying airplanes, day/night cycles, auto-location detection, city name lookups, and city-specific ASCII skylines.
 
 ## Demo
 
@@ -17,8 +17,11 @@ Features real-time weather from Open-Meteo with animated rain, snow, thunderstor
 ## Contents
 
 - [Installation](#installation)
+- [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [City Skylines](#city-skylines)
+- [Shell Integration](#shell-integration)
 - [Privacy](#privacy)
 - [Roadmap](#roadmap)
 - [License](#license)
@@ -39,6 +42,19 @@ You need Rust installed.
 git clone https://github.com/veirt/weathr.git
 cd weathr
 cargo install --path .
+```
+
+## Quick Start
+
+```bash
+# Show weather for a city
+weathr london
+
+# Set a default city (saves to config)
+weathr --set-default tokyo
+
+# Run with defaults from config
+weathr
 ```
 
 ## Configuration
@@ -111,6 +127,25 @@ Run with real-time weather:
 weathr
 ```
 
+### City Lookup
+
+Look up weather by city name instead of coordinates:
+
+```bash
+# Weather for a specific city
+weathr london
+weathr new york
+weathr san francisco
+
+# Set a default city (saves to config file)
+weathr --set-default paris
+
+# Set default via IP auto-detection
+weathr --set-default
+```
+
+The city name and country are displayed in the top-right corner of the terminal.
+
 ### CLI Options
 
 Simulate weather conditions for testing:
@@ -154,8 +189,12 @@ weathr --hide-hud
 # Run silently (suppress non-error output)
 weathr --silent
 
+# Run for a specific duration then exit (in seconds)
+weathr --duration 5
+
 # Combine flags
 weathr --imperial --auto-location
+weathr london --duration 10
 ```
 
 ### Keyboard Controls
@@ -178,13 +217,46 @@ Examples:
 NO_COLOR=1 weathr
 ```
 
+## City Skylines
+
+When looking up weather for supported cities, weathr displays a recognizable ASCII skyline instead of the default house scene. Supported cities:
+
+- **London** — Big Ben, Parliament, London Eye
+- **New York** — Empire State, Chrysler Building
+- **Paris** — Eiffel Tower, Parisian rooflines
+- **Tokyo** — Tokyo Tower, modern skyscrapers
+- **Sydney** — Opera House, Harbour Bridge
+- **Dubai** — Burj Khalifa, Burj Al Arab
+- **San Francisco** — Golden Gate towers, Transamerica Pyramid
+- **Rome** — Colosseum, St. Peter's dome
+
+Unknown cities fall back to the default town scene with a house and decorations.
+
+## Shell Integration
+
+Add weathr to your shell startup so it displays briefly when you open a terminal:
+
+```bash
+# Add to your shell rc file (.zshrc, .bashrc, or config.fish)
+weathr --install-shell
+
+# Remove from your shell rc file
+weathr --uninstall-shell
+```
+
+This adds `weathr --duration 5` to your shell config, which shows the weather for 5 seconds each time you open a new terminal.
+
 ## Privacy
 
 ### Location Detection
 
 When using `auto = true` in config or the `--auto-location` flag, the application makes a request to `ipinfo.io` to detect your approximate location based on your IP address.
 
-This is optional. You can disable auto-location and manually specify coordinates in your config file to avoid external API calls.
+### City Geocoding
+
+When using city name lookups (e.g. `weathr london`), the application queries the [Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api) to resolve city names to coordinates. No API key is required.
+
+Both features are optional. You can manually specify coordinates in your config file to avoid any external API calls beyond weather data fetching.
 
 ## Roadmap
 
@@ -209,5 +281,6 @@ Weather data provided by [Open-Meteo.com](https://open-meteo.com/) under the [CC
 - **Airplane**: Joan G. Stark
 - **Sun**: Hayley Jane Wakenshaw (Flump)
 - **Moon**: Joan G. Stark
+- **City Skylines**: Hand-crafted for this project
 
 _Note: If any ASCII art is uncredited or misattributed, it belongs to the original owner._
