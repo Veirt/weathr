@@ -41,6 +41,33 @@ cd weathr
 cargo install --path .
 ```
 
+### Nix flake (NixOS)
+Available as a flake:
+```nix
+inputs = {
+    weathr.url = "github:Veirt/weathr";
+};
+```
+Add to packages:
+```nix
+environment.systemPackages = [
+    inputs.weathr.packages.${system}.default
+];
+```
+or use home-manager module option:
+```nix
+imports = [
+    inputs.weathr.homeModules.weathr
+];
+
+programs.weathr = {
+    enable = true;
+    settings = {
+        hide_hud = true;
+    };
+};
+```
+
 ## Configuration
 
 The config file location depends on your platform:
