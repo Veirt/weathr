@@ -5,6 +5,15 @@ use std::path::PathBuf;
 use crate::error::ConfigError;
 use crate::weather::types::WeatherUnits;
 
+#[derive(Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LocationDisplay {
+    #[default]
+    Coordinates,
+    City,
+    Mixed,
+}
+
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct Config {
     #[serde(default)]
@@ -27,6 +36,10 @@ pub struct Location {
     pub auto: bool,
     #[serde(default)]
     pub hide: bool,
+    #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub display: LocationDisplay,
 }
 
 fn default_latitude() -> f64 {
@@ -44,6 +57,8 @@ impl Default for Location {
             longitude: default_longitude(),
             auto: true,
             hide: false,
+            city: None,
+            display: LocationDisplay::default(),
         }
     }
 }
@@ -214,6 +229,8 @@ longitude = 0.0
                 longitude: 0.0,
                 auto: false,
                 hide: false,
+                city: None,
+                display: LocationDisplay::default(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -232,6 +249,8 @@ longitude = 0.0
                 longitude: 0.0,
                 auto: false,
                 hide: false,
+                city: None,
+                display: LocationDisplay::default(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -250,6 +269,8 @@ longitude = 0.0
                 longitude: 181.0,
                 auto: false,
                 hide: false,
+                city: None,
+                display: LocationDisplay::default(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -268,6 +289,8 @@ longitude = 0.0
                 longitude: -181.0,
                 auto: false,
                 hide: false,
+                city: None,
+                display: LocationDisplay::default(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -286,6 +309,8 @@ longitude = 0.0
                 longitude: 13.41,
                 auto: false,
                 hide: false,
+                city: None,
+                display: LocationDisplay::default(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -342,5 +367,77 @@ precipitation = "inch"
             config.units.precipitation,
             crate::weather::types::PrecipitationUnit::Inch
         );
+    }
+
+    #[test]
+    fn test_location_display_default() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.display, LocationDisplay::Coordinates);
+    }
+
+    #[test]
+    fn test_location_display_coordinates() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+display = "coordinates"
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.display, LocationDisplay::Coordinates);
+    }
+
+    #[test]
+    fn test_location_display_city() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+display = "city"
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.display, LocationDisplay::City);
+    }
+
+    #[test]
+    fn test_location_display_mixed() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+display = "mixed"
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.display, LocationDisplay::Mixed);
+    }
+
+    #[test]
+    fn test_location_city_field() {
+        let toml_content = r#"
+[location]
+latitude = 53.9
+longitude = 27.5667
+city = "Minsk"
+display = "city"
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.city, Some("Minsk".to_string()));
+        assert_eq!(config.location.display, LocationDisplay::City);
+    }
+
+    #[test]
+    fn test_location_city_field_default_none() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.city, None);
     }
 }

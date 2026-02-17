@@ -212,10 +212,28 @@ async fn main() -> io::Result<()> {
                 }
                 config.location.latitude = geo_loc.latitude;
                 config.location.longitude = geo_loc.longitude;
+                config.location.city = geo_loc.city;
             }
             Err(e) => {
                 eprintln!("{}", e.user_friendly_message());
             }
+        }
+    }
+
+    // Resolve city name via reverse geocoding when needed but not yet known
+    if config.location.city.is_none()
+        && !config.location.hide
+        && matches!(
+            config.location.display,
+            config::LocationDisplay::City | config::LocationDisplay::Mixed
+        )
+    {
+        info(config.silent, "Resolving city name...");
+        if let Some(city) =
+            geolocation::reverse_geocode(config.location.latitude, config.location.longitude).await
+        {
+            info(config.silent, &format!("City resolved: {}", city));
+            config.location.city = Some(city);
         }
     }
 
