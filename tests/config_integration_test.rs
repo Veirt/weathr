@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Write;
-use weathr::config::Config;
+use weathr::config::{Config, LocationDisplay};
 
 #[test]
 fn test_config_integration_load_valid_file() {
@@ -112,6 +112,71 @@ fn test_config_integration_extra_whitespace() {
 
     assert_eq!(config.location.latitude, 48.8566);
     assert_eq!(config.location.longitude, 2.3522);
+
+    fs::remove_file(test_config_path).ok();
+}
+
+#[test]
+fn test_config_integration_city_and_display() {
+    let temp_dir = std::env::temp_dir();
+    let test_config_path = temp_dir.join("weathr_city_display.toml");
+
+    let mut file = fs::File::create(&test_config_path).unwrap();
+    writeln!(file, "[location]").unwrap();
+    writeln!(file, "latitude = 53.9").unwrap();
+    writeln!(file, "longitude = 27.5667").unwrap();
+    writeln!(file, "auto = false").unwrap();
+    writeln!(file, r#"city = "Minsk""#).unwrap();
+    writeln!(file, r#"display = "city""#).unwrap();
+    drop(file);
+
+    let config = Config::load_from_path(&test_config_path)
+        .expect("Should load config with city and display");
+
+    assert_eq!(config.location.city, Some("Minsk".to_string()));
+    assert_eq!(config.location.display, LocationDisplay::City);
+    assert!(!config.location.auto);
+
+    fs::remove_file(test_config_path).ok();
+}
+
+#[test]
+fn test_config_integration_display_mixed() {
+    let temp_dir = std::env::temp_dir();
+    let test_config_path = temp_dir.join("weathr_display_mixed.toml");
+
+    let mut file = fs::File::create(&test_config_path).unwrap();
+    writeln!(file, "[location]").unwrap();
+    writeln!(file, "latitude = 34.0754").unwrap();
+    writeln!(file, "longitude = -84.2941").unwrap();
+    writeln!(file, r#"display = "mixed""#).unwrap();
+    drop(file);
+
+    let config =
+        Config::load_from_path(&test_config_path).expect("Should load config with mixed display");
+
+    assert_eq!(config.location.display, LocationDisplay::Mixed);
+    assert_eq!(config.location.city, None);
+
+    fs::remove_file(test_config_path).ok();
+}
+
+#[test]
+fn test_config_integration_display_defaults_to_coordinates() {
+    let temp_dir = std::env::temp_dir();
+    let test_config_path = temp_dir.join("weathr_display_default.toml");
+
+    let mut file = fs::File::create(&test_config_path).unwrap();
+    writeln!(file, "[location]").unwrap();
+    writeln!(file, "latitude = 52.52").unwrap();
+    writeln!(file, "longitude = 13.41").unwrap();
+    drop(file);
+
+    let config =
+        Config::load_from_path(&test_config_path).expect("Should default display to coordinates");
+
+    assert_eq!(config.location.display, LocationDisplay::Coordinates);
+    assert_eq!(config.location.city, None);
 
     fs::remove_file(test_config_path).ok();
 }
