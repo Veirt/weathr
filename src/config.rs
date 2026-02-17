@@ -1,11 +1,11 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
 use crate::error::ConfigError;
 use crate::weather::types::WeatherUnits;
 
-#[derive(Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Config {
     #[serde(default)]
     pub location: Location,
@@ -17,7 +17,7 @@ pub struct Config {
     pub silent: bool,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Location {
     #[serde(default = "default_latitude")]
     pub latitude: f64,
@@ -27,6 +27,10 @@ pub struct Location {
     pub auto: bool,
     #[serde(default)]
     pub hide: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
 }
 
 fn default_latitude() -> f64 {
@@ -44,6 +48,8 @@ impl Default for Location {
             longitude: default_longitude(),
             auto: true,
             hide: false,
+            city: None,
+            country: None,
         }
     }
 }
@@ -96,7 +102,24 @@ impl Config {
         toml::from_str(&content).map_err(ConfigError::ParseError)
     }
 
-    fn get_config_path() -> Result<PathBuf, ConfigError> {
+    pub fn save(&self) -> Result<PathBuf, ConfigError> {
+        let config_path = Self::get_config_path()?;
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| ConfigError::WriteError {
+                path: parent.display().to_string(),
+                source: e,
+            })?;
+        }
+        let toml_string = toml::to_string_pretty(self)
+            .map_err(|e| ConfigError::SerializeError(e.to_string()))?;
+        fs::write(&config_path, toml_string).map_err(|e| ConfigError::WriteError {
+            path: config_path.display().to_string(),
+            source: e,
+        })?;
+        Ok(config_path)
+    }
+
+    pub fn get_config_path() -> Result<PathBuf, ConfigError> {
         let config_dir = if let Ok(xdg_config) = std::env::var("XDG_CONFIG_HOME") {
             PathBuf::from(xdg_config)
         } else {
@@ -230,6 +253,8 @@ longitude = 0.0
                 longitude: 0.0,
                 auto: false,
                 hide: false,
+                city: None,
+                country: None,
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -248,6 +273,8 @@ longitude = 0.0
                 longitude: 0.0,
                 auto: false,
                 hide: false,
+                city: None,
+                country: None,
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -266,6 +293,8 @@ longitude = 0.0
                 longitude: 181.0,
                 auto: false,
                 hide: false,
+                city: None,
+                country: None,
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -284,6 +313,8 @@ longitude = 0.0
                 longitude: -181.0,
                 auto: false,
                 hide: false,
+                city: None,
+                country: None,
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -302,6 +333,8 @@ longitude = 0.0
                 longitude: 13.41,
                 auto: false,
                 hide: false,
+                city: None,
+                country: None,
             },
             hide_hud: false,
             units: WeatherUnits::default(),

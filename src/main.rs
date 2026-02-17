@@ -5,6 +5,7 @@ mod app_state;
 mod cache;
 mod config;
 mod error;
+mod geocoding;
 mod geolocation;
 mod render;
 mod scene;
@@ -18,6 +19,7 @@ use crossterm::{
     terminal::{LeaveAlternateScreen, disable_raw_mode},
 };
 use render::TerminalRenderer;
+use std::path::PathBuf;
 use std::{io, panic};
 
 const LONG_VERSION: &str = concat!(
@@ -33,7 +35,7 @@ fn info(silent: bool, msg: &str) {
 }
 
 #[derive(Parser)]
-#[command(version, long_version = LONG_VERSION, about = "Terminal-based ASCII weather application", long_about = None)]
+#[command(version, long_version = LONG_VERSION, about = "Terminal-based ASCII weather application", long_about = None, trailing_var_arg = true)]
 struct Cli {
     #[arg(
         short,
@@ -78,6 +80,27 @@ struct Cli {
 
     #[arg(long, help = "Run silently (suppress non-error output)")]
     silent: bool,
+
+    #[arg(long, help = "Set a default city for weather lookups and save to config")]
+    set_default: bool,
+
+    #[arg(
+        short,
+        long,
+        value_name = "SECONDS",
+        help = "Run for a specified duration then exit"
+    )]
+    duration: Option<u64>,
+
+    #[arg(long, help = "Add weathr to your shell startup file")]
+    install_shell: bool,
+
+    #[arg(long, help = "Remove weathr from your shell startup file")]
+    uninstall_shell: bool,
+
+    /// City name for weather lookup (e.g. weathr london)
+    #[arg(trailing_var_arg = true, num_args = 0..)]
+    city: Vec<String>,
 }
 
 #[tokio::main]
@@ -131,6 +154,69 @@ async fn main() -> io::Result<()> {
         }
     };
 
+    // Handle --install-shell / --uninstall-shell
+    if cli.install_shell || cli.uninstall_shell {
+        let shell = std::env::var("SHELL").unwrap_or_default();
+        let home = std::env::var("HOME").unwrap_or_default();
+
+        let rc_file: Option<PathBuf> = if shell.contains("zsh") {
+            Some(PathBuf::from(format!("{}/.zshrc", home)))
+        } else if shell.contains("bash") {
+            let bash_profile = PathBuf::from(format!("{}/.bash_profile", home));
+            let bashrc = PathBuf::from(format!("{}/.bashrc", home));
+            if bash_profile.exists() {
+                Some(bash_profile)
+            } else {
+                Some(bashrc)
+            }
+        } else if shell.contains("fish") {
+            Some(PathBuf::from(format!(
+                "{}/.config/fish/config.fish",
+                home
+            )))
+        } else {
+            None
+        };
+
+        if let Some(rc_path) = rc_file {
+            if cli.install_shell {
+                let snippet = "\n# weathr - terminal weather display\nweathr --duration 5\n";
+                let contents = std::fs::read_to_string(&rc_path).unwrap_or_default();
+                if contents.contains("weathr") {
+                    println!("weathr is already in {}", rc_path.display());
+                } else {
+                    std::fs::OpenOptions::new()
+                        .append(true)
+                        .create(true)
+                        .open(&rc_path)
+                        .and_then(|mut f| {
+                            use std::io::Write;
+                            f.write_all(snippet.as_bytes())
+                        })
+                        .expect("Failed to write to shell rc file");
+                    println!("Added weathr to {}", rc_path.display());
+                    println!("Restart your shell or run: source {}", rc_path.display());
+                }
+            } else {
+                // --uninstall-shell
+                let contents = std::fs::read_to_string(&rc_path).unwrap_or_default();
+                let filtered: Vec<&str> = contents
+                    .lines()
+                    .filter(|line| {
+                        let trimmed = line.trim();
+                        !trimmed.contains("weathr")
+                    })
+                    .collect();
+                let new_contents = filtered.join("\n") + "\n";
+                std::fs::write(&rc_path, new_contents).expect("Failed to write to shell rc file");
+                println!("Removed weathr from {}", rc_path.display());
+            }
+        } else {
+            eprintln!("Could not detect your shell. Supported: zsh, bash, fish");
+        }
+        return Ok(());
+    }
+
     let mut config = match Config::load() {
         Ok(config) => config,
         Err(e) => {
@@ -150,6 +236,107 @@ async fn main() -> io::Result<()> {
             Config::default()
         }
     };
+
+    // Track location label for display
+    let mut location_label: Option<String> = None;
+
+    // Build label from saved config if present
+    if let Some(ref city) = config.location.city {
+        let label = if let Some(ref country) = config.location.country {
+            format!("{}, {}", city, country)
+        } else {
+            city.clone()
+        };
+        location_label = Some(label);
+    }
+
+    // Handle city name argument (e.g. `weathr london`)
+    let city_query: Option<String> = if !cli.city.is_empty() {
+        Some(cli.city.join(" "))
+    } else {
+        None
+    };
+
+    // --set-default: geocode (or auto-detect) and save to config, then exit
+    if cli.set_default {
+        if let Some(ref city_name) = city_query {
+            match geocoding::geocode_city(city_name).await {
+                Ok(loc) => {
+                    config.location.latitude = loc.latitude;
+                    config.location.longitude = loc.longitude;
+                    config.location.city = Some(loc.name.clone());
+                    config.location.country = loc.country.clone();
+                    match config.save() {
+                        Ok(path) => {
+                            let display = if let Some(ref c) = loc.country {
+                                format!("{}, {}", loc.name, c)
+                            } else {
+                                loc.name.clone()
+                            };
+                            println!("Default location set to: {}", display);
+                            println!("Saved to: {}", path.display());
+                        }
+                        Err(e) => eprintln!("Failed to save config: {}", e),
+                    }
+                }
+                Err(e) => eprintln!("{}", e.user_friendly_message()),
+            }
+        } else {
+            // No city given — use IP-based auto-detect
+            match geolocation::detect_location().await {
+                Ok(geo_loc) => {
+                    config.location.latitude = geo_loc.latitude;
+                    config.location.longitude = geo_loc.longitude;
+                    config.location.auto = true;
+                    if let Some(ref city) = geo_loc.city {
+                        config.location.city = Some(city.clone());
+                    }
+                    match config.save() {
+                        Ok(path) => {
+                            let display = geo_loc
+                                .city
+                                .as_deref()
+                                .unwrap_or("auto-detected location");
+                            println!("Default location set to: {}", display);
+                            println!("Saved to: {}", path.display());
+                        }
+                        Err(e) => eprintln!("Failed to save config: {}", e),
+                    }
+                }
+                Err(e) => eprintln!("{}", e.user_friendly_message()),
+            }
+        }
+        return Ok(());
+    }
+
+    // If a city name was provided, geocode it
+    if let Some(ref city_name) = city_query {
+        match geocoding::geocode_city(city_name).await {
+            Ok(loc) => {
+                config.location.latitude = loc.latitude;
+                config.location.longitude = loc.longitude;
+                config.location.city = Some(loc.name.clone());
+                config.location.country = loc.country.clone();
+                let label = if let Some(ref c) = loc.country {
+                    format!("{}, {}", loc.name, c)
+                } else {
+                    loc.name.clone()
+                };
+                location_label = Some(label);
+                info(
+                    config.silent,
+                    &format!(
+                        "Weather for: {} ({:.4}, {:.4})",
+                        loc.name, loc.latitude, loc.longitude
+                    ),
+                );
+            }
+            Err(e) => {
+                eprintln!("{}", e.user_friendly_message());
+                std::process::exit(1);
+            }
+        }
+    }
 
     // CLI Overrides
     if cli.auto_location {
@@ -184,6 +371,9 @@ async fn main() -> io::Result<()> {
                             city, geo_loc.latitude, geo_loc.longitude
                         ),
                     );
+                    if location_label.is_none() {
+                        location_label = Some(city.clone());
+                    }
                 } else {
                     info(
                         config.silent,
@@ -224,6 +414,8 @@ async fn main() -> io::Result<()> {
         cli.leaves,
         term_width,
         term_height,
+        location_label,
+        cli.duration,
     );
 
     let result = tokio::select! {

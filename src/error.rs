@@ -14,6 +14,9 @@ pub enum WeatherError {
 
     #[error("{0}")]
     Geolocation(#[from] GeolocationError),
+
+    #[error("{0}")]
+    Geocoding(#[from] GeocodingError),
 }
 
 #[derive(ThisError, Debug)]
@@ -147,6 +150,16 @@ pub enum ConfigError {
 
     #[error("invalid longitude: {0} (must be between -180 and 180)")]
     InvalidLongitude(f64),
+
+    #[error("failed to write config file at {path}")]
+    WriteError {
+        path: String,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("failed to serialize config: {0}")]
+    SerializeError(String),
 }
 
 impl ConfigError {
@@ -158,6 +171,8 @@ impl ConfigError {
             ConfigError::NoConfigDir => "NoConfigDir",
             ConfigError::InvalidLatitude(_) => "InvalidLatitude",
             ConfigError::InvalidLongitude(_) => "InvalidLongitude",
+            ConfigError::WriteError { .. } => "WriteError",
+            ConfigError::SerializeError(_) => "SerializeError",
         }
     }
 }
@@ -273,6 +288,43 @@ impl GeolocationError {
                 format!(
                     "Failed to detect location after {attempts} attempts.\n\
                      Using configured/default location."
+                )
+            }
+        }
+    }
+}
+
+#[derive(ThisError, Debug)]
+#[allow(dead_code)]
+pub enum GeocodingError {
+    #[error("cannot reach geocoding service")]
+    Unreachable(#[source] NetworkError),
+
+    #[error("city not found: {0}")]
+    CityNotFound(String),
+
+    #[error("failed to parse geocoding response: {0}")]
+    ParseError(String),
+
+    #[error("failed after {attempts} retry attempts")]
+    RetriesExhausted { attempts: u32 },
+}
+
+impl GeocodingError {
+    pub fn user_friendly_message(&self) -> String {
+        match self {
+            GeocodingError::Unreachable(net_err) => net_err.user_friendly_message(),
+            GeocodingError::CityNotFound(city) => {
+                format!("City '{}' not found. Check the spelling and try again.", city)
+            }
+            GeocodingError::ParseError(msg) => {
+                format!("Failed to parse geocoding response: {}", msg)
+            }
+            GeocodingError::RetriesExhausted { attempts } => {
+                format!(
+                    "Failed to geocode city after {} attempts.\n\
+                     Check your internet connection and try again.",
+                    attempts
                 )
             }
         }
