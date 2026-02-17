@@ -10,7 +10,7 @@ use crate::weather::{
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::io;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
@@ -61,9 +61,12 @@ pub struct App {
     scene: WorldScene,
     weather_receiver: mpsc::Receiver<Result<WeatherData, WeatherError>>,
     hide_hud: bool,
+    location_label: Option<String>,
+    duration: Option<Duration>,
 }
 
 impl App {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: &Config,
         simulate_condition: Option<String>,
@@ -71,6 +74,8 @@ impl App {
         show_leaves: bool,
         term_width: u16,
         term_height: u16,
+        location_label: Option<String>,
+        duration: Option<u64>,
     ) -> Self {
         let location = WeatherLocation {
             latitude: config.location.latitude,
@@ -80,7 +85,7 @@ impl App {
 
         let mut state = AppState::new(location, config.location.hide, config.units);
         let mut animations = AnimationManager::new(term_width, term_height, show_leaves);
-        let scene = WorldScene::new(term_width, term_height);
+        let scene = WorldScene::new(term_width, term_height, config.location.city.as_deref());
 
         let (tx, rx) = mpsc::channel(1);
 
@@ -149,12 +154,23 @@ impl App {
             scene,
             weather_receiver: rx,
             hide_hud: config.hide_hud,
+            location_label,
+            duration: duration.map(Duration::from_secs),
         }
     }
 
     pub async fn run(&mut self, renderer: &mut TerminalRenderer) -> io::Result<()> {
         let mut rng = rand::rng();
+        let start_time = Instant::now();
+
         loop {
+            // Check duration timeout
+            if let Some(dur) = self.duration {
+                if start_time.elapsed() >= dur {
+                    break;
+                }
+            }
+
             if let Ok(result) = self.weather_receiver.try_recv() {
                 match result {
                     Ok(weather) => {
@@ -215,13 +231,15 @@ impl App {
             self.scene
                 .render(renderer, &self.state.weather_conditions)?;
 
-            self.animations.render_chimney_smoke(
-                renderer,
-                &self.state.weather_conditions,
-                term_width,
-                term_height,
-                &mut rng,
-            )?;
+            if self.scene.has_chimney() {
+                self.animations.render_chimney_smoke(
+                    renderer,
+                    &self.state.weather_conditions,
+                    term_width,
+                    term_height,
+                    &mut rng,
+                )?;
+            }
 
             self.animations.render_foreground(
                 renderer,
@@ -240,6 +258,21 @@ impl App {
                     1,
                     &self.state.cached_weather_info,
                     crossterm::style::Color::Cyan,
+                )?;
+            }
+
+            // Render location label in the top-right corner
+            if let Some(ref label) = self.location_label {
+                let label_x = if term_width > label.len() as u16 + 2 {
+                    term_width - label.len() as u16 - 2
+                } else {
+                    0
+                };
+                renderer.render_line_colored(
+                    label_x,
+                    1,
+                    label,
+                    crossterm::style::Color::Yellow,
                 )?;
             }
 
