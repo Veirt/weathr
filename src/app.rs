@@ -262,15 +262,32 @@ impl App {
             }
 
             // Render location label in the top-right corner
+            // If the terminal is too narrow, move label to the next line
             if let Some(ref label) = self.location_label {
-                let label_x = if term_width > label.len() as u16 + 2 {
-                    term_width - label.len() as u16 - 2
+                let hud_len = self.state.cached_weather_info.len() as u16 + 2; // HUD starts at x=2
+                let label_len = label.len() as u16;
+                let fits_on_same_line = term_width >= hud_len + label_len + 4; // 4 = gap between HUD and label
+
+                let (label_x, label_y) = if fits_on_same_line {
+                    let x = if term_width > label_len + 2 {
+                        term_width - label_len - 2
+                    } else {
+                        0
+                    };
+                    (x, 1)
                 } else {
-                    0
+                    // Doesn't fit — place on next line, still right-aligned
+                    let x = if term_width > label_len + 2 {
+                        term_width - label_len - 2
+                    } else {
+                        0
+                    };
+                    (x, 2)
                 };
+
                 renderer.render_line_colored(
                     label_x,
-                    1,
+                    label_y,
                     label,
                     crossterm::style::Color::Yellow,
                 )?;
