@@ -41,6 +41,15 @@ cd weathr
 cargo install --path .
 ```
 
+### Arch Linux
+Available in AUR:
+```bash
+yay -S weathr
+```
+or 
+```bash
+yay -S weathr-bin
+```
 ## Configuration
 
 The config file location depends on your platform:
