@@ -10,7 +10,8 @@ mod render;
 mod scene;
 mod weather;
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::{Shell, generate};
 use config::Config;
 use crossterm::{
     cursor, execute,
@@ -78,6 +79,9 @@ struct Cli {
 
     #[arg(long, help = "Run silently (suppress non-error output)")]
     silent: bool,
+
+    #[arg(long, value_name = "SHELL", value_enum)]
+    pub completions: Option<Shell>,
 }
 
 #[tokio::main]
@@ -130,6 +134,13 @@ async fn main() -> io::Result<()> {
             }
         }
     };
+
+    if let Some(shell) = cli.completions {
+        let mut cmd = Cli::command();
+        let mut out = io::stdout();
+        generate(shell, &mut cmd, "weathr", &mut out);
+        return Ok(());
+    }
 
     let mut config = match Config::load() {
         Ok(config) => config,
