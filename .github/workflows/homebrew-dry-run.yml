@@ -1,0 +1,43 @@
+name: Homebrew Dry Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing release version to validate (e.g. 1.3.0)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate version format
+        run: |
+          [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Invalid version format"
+            exit 1
+          }
+
+      - name: Download release binaries and compute hashes
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ inputs.version }}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/v$VERSION"
+
+          for arch in macos-amd64 macos-arm64 linux-amd64 linux-arm64; do
+            echo "Fetching weathr-$arch"
+            curl -fL --retry 5 --retry-delay 5 \
+              -o "weathr-$arch" "$BASE_URL/weathr-$arch"
+
+            sha256sum "weathr-$arch"
+          done
+
+      - name: Summary
+        run: |
+          echo "Dry run complete."
+          echo "No Homebrew tap was modified."

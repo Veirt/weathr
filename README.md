@@ -41,6 +41,45 @@ cd weathr
 cargo install --path .
 ```
 
+### Arch Linux
+
+Available in AUR:
+```bash
+yay -S weathr
+```
+or 
+```bash
+yay -S weathr-bin
+```
+
+### Nix flake (NixOS)
+
+Available as a flake:
+```nix
+inputs = {
+    weathr.url = "github:Veirt/weathr";
+};
+```
+Add to packages:
+```nix
+environment.systemPackages = [
+    inputs.weathr.packages.${system}.default
+];
+```
+or use home-manager module option:
+```nix
+imports = [
+    inputs.weathr.homeModules.weathr
+];
+
+programs.weathr = {
+    enable = true;
+    settings = {
+        hide_hud = true;
+    };
+};
+```
+
 ## Configuration
 
 The config file location depends on your platform:
@@ -189,7 +228,7 @@ This is optional. You can disable auto-location and manually specify coordinates
 ## Roadmap
 
 - [ ] Support for OpenWeatherMap, WeatherAPI, etc.
-- [ ] Installation via AUR.
+- [x] Installation via AUR.
 - [ ] Key bindings for manual refresh, speed up animations, pause animations, and toggle HUD.
 
 ## License

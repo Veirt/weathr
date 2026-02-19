@@ -1,0 +1,74 @@
+name: Update Homebrew Formula
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+jobs:
+  update-homebrew:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          REF="${{ github.event.workflow_run.head_branch }}"
+          VERSION="${REF#refs/tags/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Download binaries and compute hashes
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/v$VERSION"
+
+          > hashes.txt
+          for arch in macos-amd64 macos-arm64 linux-amd64 linux-arm64; do
+            curl -fL --retry 5 --retry-delay 10 \
+              -o "weathr-$arch" "$BASE_URL/weathr-$arch"
+
+            echo "$(sha256sum weathr-$arch | cut -d' ' -f1)  $arch" >> hashes.txt
+          done
+
+          cat hashes.txt
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v6
+        with:
+          repository: Veirt/homebrew-veirt
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-veirt
+
+      - name: Update formula
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+          FORMULA="homebrew-veirt/Formula/weathr.rb"
+
+          sed -i "s/version \"[0-9.]\+\"/version \"$VERSION\"/" "$FORMULA"
+
+          while read -r hash arch; do
+            sed -i "/weathr-$arch/{n;s/sha256 \"[a-f0-9]\+\"/sha256 \"$hash\"/}" "$FORMULA"
+          done < hashes.txt
+
+          git -C homebrew-veirt diff Formula/weathr.rb
+
+      - name: Commit and push
+        run: |
+          cd homebrew-veirt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/weathr.rb
+          git diff --cached --quiet || git commit -m "Update weathr to v${{ steps.version.outputs.version }}"
+          git push

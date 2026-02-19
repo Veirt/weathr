@@ -33,6 +33,7 @@ clap = { version = "4.5", features = ["derive"] }
 rand = "0.10"
 chrono = "0.4"
 thiserror = "2.0"
+clap_complete = "4.5.66"
 
 [profile.release]
 lto = "thin"
