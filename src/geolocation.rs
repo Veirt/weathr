@@ -116,6 +116,16 @@ struct NominatimResponse {
 /// coordinates, or `None` if the lookup fails or the location doesn't map to a
 /// meaningful settlement (e.g. open sea, administrative-only regions).
 pub async fn reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Option<String> {
+    if let Some(cached) = cache::load_cached_geocode(latitude, longitude, language).await {
+        return Some(cached);
+    }
+
+    let city = fetch_reverse_geocode(latitude, longitude, language).await?;
+    cache::save_geocode_cache(&city, latitude, longitude, language);
+    Some(city)
+}
+
+async fn fetch_reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Option<String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .connect_timeout(Duration::from_secs(3))
