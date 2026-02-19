@@ -159,12 +159,13 @@ async fn search_cities(query: &str) -> Result<Vec<GeocodingResult>, OnboardError
         .build()
         .map_err(|e| OnboardError::GeocodingError(crate::error::NetworkError::ClientCreation(e)))?;
 
-    let url = format!(
-        "{GEOCODING_API_URL}?name={}&count=10&language=en",
-        urlencoded(query)
-    );
+    let url = url::Url::parse_with_params(
+        GEOCODING_API_URL,
+        &[("name", query), ("count", "10"), ("language", "en")],
+    )
+    .expect("static base URL should be valid");
 
-    let response = client.get(&url).send().await.map_err(|e| {
+    let response = client.get(url).send().await.map_err(|e| {
         OnboardError::GeocodingError(crate::error::NetworkError::from_reqwest(
             e,
             GEOCODING_API_URL,
@@ -183,21 +184,6 @@ async fn search_cities(query: &str) -> Result<Vec<GeocodingResult>, OnboardError
     body.results
         .filter(|r: &Vec<GeocodingResult>| !r.is_empty())
         .ok_or_else(|| OnboardError::NoGeocodingResults(query.to_string()))
-}
-
-fn urlencoded(s: &str) -> String {
-    let mut encoded = String::with_capacity(s.len() * 2);
-    for byte in s.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                encoded.push(byte as char);
-            }
-            _ => {
-                encoded.push_str(&format!("%{byte:02X}"));
-            }
-        }
-    }
-    encoded
 }
 
 // ── Prompt helpers ───────────────────────────────────────────────────
@@ -296,8 +282,9 @@ fn prompt_auto_location(current: bool) -> Result<bool, OnboardError> {
             current_hint(yes_no(current))
         ))
         .default(current)
-        .interact()
-        .map_err(|e| OnboardError::PromptError(e.to_string()))
+        .interact_opt()
+        .map_err(|e| OnboardError::PromptError(e.to_string()))?
+        .ok_or(OnboardError::Cancelled)
 }
 
 fn prompt_hide_location(current: bool) -> Result<bool, OnboardError> {
@@ -307,8 +294,9 @@ fn prompt_hide_location(current: bool) -> Result<bool, OnboardError> {
             current_hint(yes_no(current))
         ))
         .default(current)
-        .interact()
-        .map_err(|e| OnboardError::PromptError(e.to_string()))
+        .interact_opt()
+        .map_err(|e| OnboardError::PromptError(e.to_string()))?
+        .ok_or(OnboardError::Cancelled)
 }
 
 fn prompt_temperature_unit(current: TemperatureUnit) -> Result<TemperatureUnit, OnboardError> {
@@ -326,7 +314,7 @@ fn prompt_temperature_unit(current: TemperatureUnit) -> Result<TemperatureUnit, 
                 TemperatureUnit::Fahrenheit => "fahrenheit",
             })
         ))
-        .items(&options)
+        .items(options)
         .default(default)
         .interact_opt()
         .map_err(|e| OnboardError::PromptError(e.to_string()))?
@@ -357,7 +345,7 @@ fn prompt_wind_speed_unit(current: WindSpeedUnit) -> Result<WindSpeedUnit, Onboa
                 WindSpeedUnit::Kn => "knots",
             })
         ))
-        .items(&options)
+        .items(options)
         .default(default)
         .interact_opt()
         .map_err(|e| OnboardError::PromptError(e.to_string()))?
@@ -388,7 +376,7 @@ fn prompt_precipitation_unit(
                 PrecipitationUnit::Inch => "inch",
             })
         ))
-        .items(&options)
+        .items(options)
         .default(default)
         .interact_opt()
         .map_err(|e| OnboardError::PromptError(e.to_string()))?
@@ -407,8 +395,9 @@ fn prompt_hide_hud(current: bool) -> Result<bool, OnboardError> {
             current_hint(yes_no(current))
         ))
         .default(current)
-        .interact()
-        .map_err(|e| OnboardError::PromptError(e.to_string()))
+        .interact_opt()
+        .map_err(|e| OnboardError::PromptError(e.to_string()))?
+        .ok_or(OnboardError::Cancelled)
 }
 
 fn prompt_silent(current: bool) -> Result<bool, OnboardError> {
@@ -418,8 +407,9 @@ fn prompt_silent(current: bool) -> Result<bool, OnboardError> {
             current_hint(yes_no(current))
         ))
         .default(current)
-        .interact()
-        .map_err(|e| OnboardError::PromptError(e.to_string()))
+        .interact_opt()
+        .map_err(|e| OnboardError::PromptError(e.to_string()))?
+        .ok_or(OnboardError::Cancelled)
 }
 
 // ── Main onboarding flow ─────────────────────────────────────────────
@@ -465,58 +455,54 @@ pub async fn run() -> Result<(), OnboardError> {
             config.location.longitude = prompt_longitude(config.location.longitude)?;
             config.location.auto = prompt_auto_location(config.location.auto)?;
         }
-        LocationMethod::CitySearch => {
-            loop {
-                let city = prompt_city_name()?;
+        LocationMethod::CitySearch => loop {
+            let city = prompt_city_name()?;
 
-                let searching = Style::new().dim();
-                println!(
-                    "  {}",
-                    searching.apply_to(format!("Searching for \"{city}\"..."))
-                );
+            let searching = Style::new().dim();
+            println!(
+                "  {}",
+                searching.apply_to(format!("Searching for \"{city}\"..."))
+            );
 
-                match search_cities(&city).await {
-                    Ok(results) => match prompt_select_city(&results)? {
-                        CitySelection::Selected(idx) => {
-                            let selected = &results[idx];
+            match search_cities(&city).await {
+                Ok(results) => match prompt_select_city(&results)? {
+                    CitySelection::Selected(idx) => {
+                        let selected = &results[idx];
 
-                            config.location = Location {
-                                latitude: selected.latitude,
-                                longitude: selected.longitude,
-                                auto: false,
-                                hide: config.location.hide,
-                                ..Default::default()
-                            };
+                        config.location = Location {
+                            latitude: selected.latitude,
+                            longitude: selected.longitude,
+                            auto: false,
+                            hide: config.location.hide,
+                            ..Default::default()
+                        };
 
-                            let green = Style::new().green();
-                            println!(
-                                "  {} {:.4}, {:.4}",
-                                green.apply_to("Selected:"),
-                                selected.latitude,
-                                selected.longitude,
-                            );
-                            break;
-                        }
-                        CitySelection::SearchAgain => {
-                            println!();
-                            continue;
-                        }
-                    },
-                    Err(OnboardError::NoGeocodingResults(query)) => {
-                        print_error(&format!(
-                            "No results found for \"{query}\". Try a different search."
-                        ));
-                        continue;
-                    }
-                    Err(e) => {
-                        print_error(&format!("Search failed: {e}. Using current coordinates."));
+                        let green = Style::new().green();
+                        println!(
+                            "  {} {:.4}, {:.4}",
+                            green.apply_to("Selected:"),
+                            selected.latitude,
+                            selected.longitude,
+                        );
                         break;
                     }
+                    CitySelection::SearchAgain => {
+                        println!();
+                        continue;
+                    }
+                },
+                Err(OnboardError::NoGeocodingResults(query)) => {
+                    print_error(&format!(
+                        "No results found for \"{query}\". Try a different search."
+                    ));
+                    continue;
+                }
+                Err(e) => {
+                    print_error(&format!("Search failed: {e}. Using current coordinates."));
+                    break;
                 }
             }
-
-            config.location.auto = prompt_auto_location(config.location.auto)?;
-        }
+        },
         LocationMethod::AutoDetect => {
             config.location.auto = true;
         }
@@ -555,43 +541,6 @@ pub async fn run() -> Result<(), OnboardError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ── urlencoded ───────────────────────────────────────────
-
-    #[test]
-    fn test_urlencoded_ascii_passthrough() {
-        assert_eq!(urlencoded("Berlin"), "Berlin");
-        assert_eq!(urlencoded("new-york"), "new-york");
-        assert_eq!(urlencoded("test_123"), "test_123");
-    }
-
-    #[test]
-    fn test_urlencoded_spaces_and_special_chars() {
-        assert_eq!(urlencoded("New York"), "New%20York");
-        assert_eq!(urlencoded("a&b=c"), "a%26b%3Dc");
-        assert_eq!(urlencoded("foo+bar#baz"), "foo%2Bbar%23baz");
-    }
-
-    #[test]
-    fn test_urlencoded_non_ascii_utf8() {
-        // "München" -> 'ü' is U+00FC, UTF-8 bytes: 0xC3 0xBC
-        assert_eq!(urlencoded("München"), "M%C3%BCnchen");
-        // "São" -> 'ã' is U+00E3, UTF-8 bytes: 0xC3 0xA3
-        assert_eq!(urlencoded("São"), "S%C3%A3o");
-    }
-
-    #[test]
-    fn test_urlencoded_cyrillic() {
-        // "Москва" - each Cyrillic char is 2 UTF-8 bytes
-        let encoded = urlencoded("Москва");
-        assert!(!encoded.contains("Москва"));
-        assert!(encoded.starts_with("%D0%9C")); // 'М' = U+041C -> 0xD0 0x9C
-    }
-
-    #[test]
-    fn test_urlencoded_empty() {
-        assert_eq!(urlencoded(""), "");
-    }
 
     // ── GeocodingResult Display ──────────────────────────────
 
