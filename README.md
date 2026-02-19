@@ -80,12 +80,21 @@ programs.weathr = {
 };
 ```
 
+### Windows
+
+Available through Winget:
+```
+winget install -i Veirt.weathr
+```
+
+
 ## Configuration
 
 The config file location depends on your platform:
 
 - **Linux**: `~/.config/weathr/config.toml` (or `$XDG_CONFIG_HOME/weathr/config.toml`)
 - **macOS**: `~/Library/Application Support/weathr/config.toml`
+- **Windows**: `~/AppData/Roaming/weathr/config.toml`
 
 You can also place a `config.toml` in the current working directory, which takes priority over the default location.
 
@@ -97,6 +106,9 @@ mkdir -p ~/.config/weathr
 
 # macOS
 mkdir -p ~/Library/Application\ Support/weathr
+
+# Windows
+New-Item -Path $env:APPDATA/weathr -Type Directory
 ```
 
 Edit the config file at the appropriate path for your platform:
