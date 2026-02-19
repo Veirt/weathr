@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::error::ConfigError;
 use crate::weather::types::WeatherUnits;
@@ -87,7 +87,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn load_from_path(path: &PathBuf) -> Result<Self, ConfigError> {
+    pub fn load_from_path(path: &Path) -> Result<Self, ConfigError> {
         let content = fs::read_to_string(path).map_err(|e| ConfigError::ReadError {
             path: path.display().to_string(),
             source: e,
@@ -110,7 +110,7 @@ impl Config {
         Ok(Self::get_config_dir()?.join("config.toml"))
     }
 
-    pub fn save(&self, path: &PathBuf) -> Result<(), ConfigError> {
+    pub fn save(&self, path: &Path) -> Result<(), ConfigError> {
         let content = toml::to_string_pretty(self).map_err(ConfigError::SerializeError)?;
         fs::write(path, content).map_err(|e| ConfigError::WriteError {
             path: path.display().to_string(),
