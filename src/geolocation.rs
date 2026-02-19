@@ -115,7 +115,7 @@ struct NominatimResponse {
 /// Best-effort reverse geocode: returns a city/town/village name for the given
 /// coordinates, or `None` if the lookup fails or the location doesn't map to a
 /// meaningful settlement (e.g. open sea, administrative-only regions).
-pub async fn reverse_geocode(latitude: f64, longitude: f64) -> Option<String> {
+pub async fn reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Option<String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .connect_timeout(Duration::from_secs(3))
@@ -127,13 +127,16 @@ pub async fn reverse_geocode(latitude: f64, longitude: f64) -> Option<String> {
         NOMINATIM_URL, latitude, longitude
     );
 
-    let resp = client
-        .get(&url)
-        .header("User-Agent", "weathr/1.3.0")
-        .header("Accept-Language", "en")
-        .send()
-        .await
-        .ok()?;
+    let mut req = client.get(&url).header(
+        "User-Agent",
+        format!("weathr/{}", env!("CARGO_PKG_VERSION")),
+    );
+
+    if language != "auto" {
+        req = req.header("Accept-Language", language);
+    }
+
+    let resp = req.send().await.ok()?;
 
     let data: NominatimResponse = resp.json().await.ok()?;
 

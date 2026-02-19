@@ -40,6 +40,12 @@ pub struct Location {
     pub city: Option<String>,
     #[serde(default)]
     pub display: LocationDisplay,
+    #[serde(default = "default_city_name_language")]
+    pub city_name_language: String,
+}
+
+fn default_city_name_language() -> String {
+    "auto".to_string()
 }
 
 fn default_latitude() -> f64 {
@@ -59,6 +65,7 @@ impl Default for Location {
             hide: false,
             city: None,
             display: LocationDisplay::default(),
+            city_name_language: default_city_name_language(),
         }
     }
 }
@@ -247,6 +254,7 @@ longitude = 0.0
                 hide: false,
                 city: None,
                 display: LocationDisplay::default(),
+                city_name_language: "auto".to_string(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -267,6 +275,7 @@ longitude = 0.0
                 hide: false,
                 city: None,
                 display: LocationDisplay::default(),
+                city_name_language: "auto".to_string(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -287,6 +296,7 @@ longitude = 0.0
                 hide: false,
                 city: None,
                 display: LocationDisplay::default(),
+                city_name_language: "auto".to_string(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -307,6 +317,7 @@ longitude = 0.0
                 hide: false,
                 city: None,
                 display: LocationDisplay::default(),
+                city_name_language: "auto".to_string(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -327,6 +338,7 @@ longitude = 0.0
                 hide: false,
                 city: None,
                 display: LocationDisplay::default(),
+                city_name_language: "auto".to_string(),
             },
             hide_hud: false,
             units: WeatherUnits::default(),
@@ -455,5 +467,52 @@ longitude = 0.0
 "#;
         let config: Config = toml::from_str(toml_content).unwrap();
         assert_eq!(config.location.city, None);
+    }
+
+    #[test]
+    fn test_city_name_language_default() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.city_name_language, "auto");
+    }
+
+    #[test]
+    fn test_city_name_language_explicit_auto() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+city_name_language = "auto"
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.city_name_language, "auto");
+    }
+
+    #[test]
+    fn test_city_name_language_explicit_en() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+city_name_language = "en"
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.city_name_language, "en");
+    }
+
+    #[test]
+    fn test_city_name_language_explicit_ru() {
+        let toml_content = r#"
+[location]
+latitude = 0.0
+longitude = 0.0
+city_name_language = "ru"
+"#;
+        let config: Config = toml::from_str(toml_content).unwrap();
+        assert_eq!(config.location.city_name_language, "ru");
     }
 }

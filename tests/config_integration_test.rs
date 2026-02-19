@@ -180,3 +180,44 @@ fn test_config_integration_display_defaults_to_coordinates() {
 
     fs::remove_file(test_config_path).ok();
 }
+
+#[test]
+fn test_config_integration_city_name_language() {
+    let temp_dir = std::env::temp_dir();
+    let test_config_path = temp_dir.join("weathr_city_name_lang.toml");
+
+    let mut file = fs::File::create(&test_config_path).unwrap();
+    writeln!(file, "[location]").unwrap();
+    writeln!(file, "latitude = 55.7558").unwrap();
+    writeln!(file, "longitude = 37.6173").unwrap();
+    writeln!(file, r#"display = "city""#).unwrap();
+    writeln!(file, r#"city_name_language = "ru""#).unwrap();
+    drop(file);
+
+    let config = Config::load_from_path(&test_config_path)
+        .expect("Should load config with city_name_language");
+
+    assert_eq!(config.location.city_name_language, "ru");
+    assert_eq!(config.location.display, LocationDisplay::City);
+
+    fs::remove_file(test_config_path).ok();
+}
+
+#[test]
+fn test_config_integration_city_name_language_defaults_to_auto() {
+    let temp_dir = std::env::temp_dir();
+    let test_config_path = temp_dir.join("weathr_city_name_lang_default.toml");
+
+    let mut file = fs::File::create(&test_config_path).unwrap();
+    writeln!(file, "[location]").unwrap();
+    writeln!(file, "latitude = 52.52").unwrap();
+    writeln!(file, "longitude = 13.41").unwrap();
+    drop(file);
+
+    let config = Config::load_from_path(&test_config_path)
+        .expect("Should default city_name_language to auto");
+
+    assert_eq!(config.location.city_name_language, "auto");
+
+    fs::remove_file(test_config_path).ok();
+}
