@@ -30,10 +30,8 @@ pub struct StarSystem {
 impl StarSystem {
     const MIN_DISTANCE: f32 = 3.0; // Minimum distance between stars
 
-
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
-
-        let stars = Self::create_stars(terminal_width, terminal_height, &vec![]);
+        let stars = Self::create_stars(terminal_width, terminal_height, &[]);
 
         Self {
             stars,
@@ -43,11 +41,17 @@ impl StarSystem {
         }
     }
 
-    fn create_stars(terminal_width: u16, terminal_height: u16, inital_stars: &Vec<Star>) -> Vec<Star> {
+    fn create_stars(
+        terminal_width: u16,
+        terminal_height: u16,
+        inital_stars: &[Star],
+    ) -> Vec<Star> {
         let mut rng = rand::rng();
         let count = (terminal_width as usize * terminal_height as usize) / 80; // Density
 
-        if count < inital_stars.len() { return inital_stars.clone(); }
+        if count < inital_stars.len() {
+            return inital_stars.to_vec();
+        }
 
         let mut stars = Vec::with_capacity(count);
 
@@ -87,7 +91,8 @@ impl StarSystem {
     }
 
     pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
-        if terminal_width != self.terminal_width || terminal_height != self.terminal_height { // Fix stars not resizing
+        if terminal_width != self.terminal_width || terminal_height != self.terminal_height {
+            // Fix stars not resizing
             self.stars = Self::create_stars(terminal_width, terminal_height, &self.stars);
 
             self.terminal_width = terminal_width;
@@ -95,7 +100,6 @@ impl StarSystem {
 
             return;
         }
-
 
         // Twinkle
         for star in &mut self.stars {
