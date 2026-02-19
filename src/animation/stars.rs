@@ -41,11 +41,7 @@ impl StarSystem {
         }
     }
 
-    fn create_stars(
-        terminal_width: u16,
-        terminal_height: u16,
-        inital_stars: &[Star],
-    ) -> Vec<Star> {
+    fn create_stars(terminal_width: u16, terminal_height: u16, inital_stars: &[Star]) -> Vec<Star> {
         let mut rng = rand::rng();
         let count = (terminal_width as usize * terminal_height as usize) / 80; // Density
 
