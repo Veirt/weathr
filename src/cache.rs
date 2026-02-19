@@ -71,6 +71,53 @@ pub fn save_location_cache(location: &GeoLocation) {
     });
 }
 
+#[derive(Serialize, Deserialize)]
+struct GeocodeCache {
+    city_name: String,
+    cached_at: u64,
+    location_key: String,
+    language: String,
+}
+
+pub async fn load_cached_geocode(latitude: f64, longitude: f64, language: &str) -> Option<String> {
+    let cache_path = get_cache_dir()?.join("geocode.json");
+    let contents = fs::read_to_string(&cache_path).await.ok()?;
+    let cache: GeocodeCache = serde_json::from_str(&contents).ok()?;
+
+    let location_key = make_location_key(latitude, longitude);
+    if cache.location_key != location_key || cache.language != language {
+        return None;
+    }
+
+    let now = current_timestamp();
+    if now - cache.cached_at < LOCATION_CACHE_DURATION_SECS {
+        Some(cache.city_name)
+    } else {
+        None
+    }
+}
+
+pub fn save_geocode_cache(city_name: &str, latitude: f64, longitude: f64, language: &str) {
+    let city_name = city_name.to_string();
+    let language = language.to_string();
+    tokio::spawn(async move {
+        if let Some(cache_dir) = get_cache_dir() {
+            let _ = fs::create_dir_all(&cache_dir).await;
+
+            let cache = GeocodeCache {
+                city_name,
+                cached_at: current_timestamp(),
+                location_key: make_location_key(latitude, longitude),
+                language,
+            };
+
+            if let Ok(json) = serde_json::to_string(&cache) {
+                let _ = fs::write(cache_dir.join("geocode.json"), json).await;
+            }
+        }
+    });
+}
+
 pub async fn load_cached_weather(latitude: f64, longitude: f64) -> Option<WeatherData> {
     let cache_path = get_cache_dir()?.join("weather.json");
     let contents = fs::read_to_string(&cache_path).await.ok()?;
