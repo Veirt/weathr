@@ -30,8 +30,10 @@ pub struct StarSystem {
 impl StarSystem {
     const MIN_DISTANCE: f32 = 3.0; // Minimum distance between stars
 
+
     pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
-        let stars = Self::create_stars(terminal_width, terminal_height, &[]);
+
+        let stars = Self::create_stars(terminal_width, terminal_height, &vec![]);
 
         Self {
             stars,

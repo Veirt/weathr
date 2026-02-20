@@ -80,7 +80,7 @@ impl WeatherClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::weather::open_meteo::OpenMeteoProvider;
+    use crate::weather::provider::open_meteo::OpenMeteoProvider;
     use std::time::Duration;
 
     #[tokio::test]

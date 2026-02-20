@@ -1,4 +1,6 @@
 use serde::Deserialize;
+use toml::Table;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -15,6 +17,15 @@ pub struct Config {
     pub units: WeatherUnits,
     #[serde(default)]
     pub silent: bool,
+    #[serde(default)]
+    pub provider: HashMap<Provider, Table>
+}
+
+#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub enum Provider {
+    #[default]
+    OpenMeteo,
+    MetOffice
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -218,6 +229,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            provider: HashMap::new(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -236,6 +248,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            provider: HashMap::new(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -254,6 +267,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            provider: HashMap::new(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -272,6 +286,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            provider: HashMap::new(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -290,6 +305,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            provider: HashMap::new(),
         };
         let result = config.validate();
         assert!(result.is_ok());
