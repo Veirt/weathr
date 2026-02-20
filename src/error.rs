@@ -150,6 +150,8 @@ pub enum ConfigError {
 
     #[error("invalid value for ${name} (expected a float, got {value:?})")]
     InvalidEnvVar { name: &'static str, value: String },
+    #[error("invalid API Key ({0})")]
+    InvalidAPIKey(String),
 }
 
 impl ConfigError {
@@ -162,6 +164,7 @@ impl ConfigError {
             ConfigError::InvalidLatitude(_) => "InvalidLatitude",
             ConfigError::InvalidLongitude(_) => "InvalidLongitude",
             ConfigError::InvalidEnvVar { .. } => "InvalidEnvVar",
+            ConfigError::InvalidAPIKey(_) => "InvalidAPIKey",
         }
     }
 }

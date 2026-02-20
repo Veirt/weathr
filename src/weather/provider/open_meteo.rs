@@ -124,6 +124,11 @@ impl Default for OpenMeteoProvider {
 
 #[async_trait]
 impl WeatherProvider for OpenMeteoProvider {
+
+    fn get_attribution(&self) -> &'static str {
+        "Weather data provided by OpenMeteo"
+    }
+
     async fn get_current_weather(
         &self,
         location: &WeatherLocation,
@@ -161,6 +166,7 @@ impl WeatherProvider for OpenMeteoProvider {
             is_day: data.current.is_day,
             moon_phase,
             timestamp: data.current.time,
+            attribution: self.get_attribution().to_string(),
         })
     }
 }
