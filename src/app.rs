@@ -285,6 +285,7 @@ impl App {
                 )?;
             }
 
+            // Render attribution - Required by some providers
             let attribution_x = if term_width > attribution.len() as u16 {
                 term_width - attribution.len() as u16 - 2
             } else {
