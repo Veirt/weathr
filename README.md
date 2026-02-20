@@ -113,8 +113,11 @@ mkdir -p ~/.config/weathr
 # macOS
 mkdir -p ~/Library/Application\ Support/weathr
 
-# Windows
+# Windows (PowerShell)
 New-Item -Path $env:APPDATA/weathr -Type Directory
+
+# Windows (Command Prompt)
+mkdir %APPDATA%/weathr
 ```
 
 Edit the config file at the appropriate path for your platform:
