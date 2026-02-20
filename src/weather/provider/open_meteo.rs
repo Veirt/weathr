@@ -101,7 +101,7 @@ impl Default for OpenMeteoProvider {
 impl WeatherProvider for OpenMeteoProvider {
 
     fn get_attribution(&self) -> &'static str {
-        "Weather data provided by OpenMeteo"
+        ""
     }
 
     async fn get_current_weather(

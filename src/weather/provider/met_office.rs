@@ -80,26 +80,10 @@ impl MetOfficeProvider {
             .map_err(|e| WeatherError::Network(NetworkError::from_reqwest(e, &url, 30)))?;
 
 
-        // #[cfg(test)]
-        let data= {
-            let data: Value = response
-                .json()
-                .await
-                .map_err(|e| WeatherError::Network(NetworkError::from_reqwest(e, &url, 30)))?;
-
-            // println!("{:#?}", data);
-
-            fs::write("./latest.json", data.to_string()).unwrap();
-
-            let data: MetOfficeResponse = serde_json::from_value(data).unwrap();
-            data
-        };
-
-        // #[cfg(not(test))]
-        // let data: MetOfficeResponse = response
-        //     .json()
-        //     .await
-        //     .map_err(|e| WeatherError::Network(NetworkError::from_reqwest(e, &url, 30)))?;
+        let data: MetOfficeResponse = response
+            .json()
+            .await
+            .map_err(|e| WeatherError::Network(NetworkError::from_reqwest(e, &url, 30)))?;
 
         Ok(data)
     }
@@ -127,7 +111,9 @@ impl MetOfficeProvider {
 impl WeatherProvider for MetOfficeProvider {
 
     fn get_attribution(&self) -> &'static str {
-        "Weather data provided by UK Met Office"
+        // Required by Met-Office
+        // See: https://www.metoffice.gov.uk/binaries/content/assets/metofficegovuk/pdf/data/met-office-weatherdatahub-terms-and-conditions.pdf
+        "Data supplied by the Met Office"
     }
 
     async fn get_current_weather(
