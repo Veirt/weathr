@@ -41,6 +41,12 @@ cd weathr
 cargo install --path .
 ```
 
+### Homebrew (macOS)
+
+```bash
+brew install Veirt/veirt/weathr
+```
+
 ### Arch Linux
 
 Available in AUR:
