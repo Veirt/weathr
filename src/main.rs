@@ -23,8 +23,8 @@ use std::{io, panic};
 
 const LONG_VERSION: &str = concat!(
     env!("CARGO_PKG_VERSION"),
-    "\n\nWeather data by Open-Meteo.com (https://open-meteo.com/)\n",
-    "Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
+    "\n\nWeather data provided by Open-Meteo.com (https://open-meteo.com/)\n",
+    "Data licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
 );
 
 fn info(silent: bool, msg: &str) {
@@ -33,8 +33,14 @@ fn info(silent: bool, msg: &str) {
     }
 }
 
+const ABOUT: &str = concat!(
+    "Terminal-based ASCII weather application\n\n",
+    "Weather data provided by Open-Meteo.com (https://open-meteo.com/)\n",
+    "Data licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
+);
+
 #[derive(Parser)]
-#[command(version, long_version = LONG_VERSION, about = "Terminal-based ASCII weather application", long_about = None)]
+#[command(version, long_version = LONG_VERSION, about = ABOUT, long_about = None)]
 struct Cli {
     #[arg(
         short,
