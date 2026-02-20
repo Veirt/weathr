@@ -78,7 +78,13 @@ impl App {
             elevation: None,
         };
 
-        let mut state = AppState::new(location, config.location.hide, config.units);
+        let mut state = AppState::new(
+            location,
+            config.location.city.clone(),
+            config.location.display,
+            config.location.hide,
+            config.units,
+        );
         let mut animations = AnimationManager::new(term_width, term_height, show_leaves);
         let scene = WorldScene::new(term_width, term_height);
 

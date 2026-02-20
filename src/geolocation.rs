@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 const IPINFO_URL: &str = "https://ipinfo.io/json";
+const NOMINATIM_URL: &str = "https://nominatim.openstreetmap.org/reverse";
 const MAX_RETRIES: u32 = 3;
 const INITIAL_RETRY_DELAY_MS: u64 = 500;
 
@@ -97,4 +98,58 @@ async fn fetch_location() -> Result<GeoLocation, GeolocationError> {
     cache::save_location_cache(&location);
 
     Ok(location)
+}
+
+#[derive(Deserialize, Debug)]
+struct NominatimAddress {
+    city: Option<String>,
+    town: Option<String>,
+    village: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct NominatimResponse {
+    address: Option<NominatimAddress>,
+}
+
+/// Best-effort reverse geocode: returns a city/town/village name for the given
+/// coordinates, or `None` if the lookup fails or the location doesn't map to a
+/// meaningful settlement (e.g. open sea, administrative-only regions).
+pub async fn reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Option<String> {
+    if let Some(cached) = cache::load_cached_geocode(latitude, longitude, language).await {
+        return Some(cached);
+    }
+
+    let city = fetch_reverse_geocode(latitude, longitude, language).await?;
+    cache::save_geocode_cache(&city, latitude, longitude, language);
+    Some(city)
+}
+
+async fn fetch_reverse_geocode(latitude: f64, longitude: f64, language: &str) -> Option<String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+        .ok()?;
+
+    let url = format!(
+        "{}?lat={}&lon={}&format=json&zoom=10",
+        NOMINATIM_URL, latitude, longitude
+    );
+
+    let mut req = client.get(&url).header(
+        "User-Agent",
+        format!("weathr/{}", env!("CARGO_PKG_VERSION")),
+    );
+
+    if language != "auto" {
+        req = req.header("Accept-Language", language);
+    }
+
+    let resp = req.send().await.ok()?;
+
+    let data: NominatimResponse = resp.json().await.ok()?;
+
+    let addr = data.address?;
+    addr.city.or(addr.town).or(addr.village)
 }

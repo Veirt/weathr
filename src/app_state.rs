@@ -1,3 +1,4 @@
+use crate::config::LocationDisplay;
 use crate::weather::{
     WeatherCondition, WeatherConditions, WeatherData, WeatherLocation, WeatherUnits,
     format_precipitation, format_temperature, format_wind_speed,
@@ -12,12 +13,20 @@ pub struct AppState {
     pub cached_weather_info: String,
     pub weather_info_needs_update: bool,
     pub location: WeatherLocation,
+    pub city_name: Option<String>,
+    pub location_display: LocationDisplay,
     pub hide_location: bool,
     pub units: WeatherUnits,
 }
 
 impl AppState {
-    pub fn new(location: WeatherLocation, hide_location: bool, units: WeatherUnits) -> Self {
+    pub fn new(
+        location: WeatherLocation,
+        city_name: Option<String>,
+        location_display: LocationDisplay,
+        hide_location: bool,
+        units: WeatherUnits,
+    ) -> Self {
         Self {
             current_weather: None,
             is_offline: false,
@@ -26,6 +35,8 @@ impl AppState {
             cached_weather_info: String::new(),
             weather_info_needs_update: true,
             location,
+            city_name,
+            location_display,
             hide_location,
             units,
         }
@@ -98,10 +109,19 @@ impl AppState {
             } else {
                 (-self.location.longitude, "W")
             };
-            format!(
-                " | Location: {:.2}°{}, {:.2}°{}",
-                lat_value, lat_dir, lon_value, lon_dir
-            )
+            let coords = format!("{:.2}°{}, {:.2}°{}", lat_value, lat_dir, lon_value, lon_dir);
+            let label = match self.location_display {
+                LocationDisplay::Coordinates => coords,
+                LocationDisplay::City => match &self.city_name {
+                    Some(city) => city.clone(),
+                    None => coords,
+                },
+                LocationDisplay::Mixed => match &self.city_name {
+                    Some(city) => format!("{} ({})", city, coords),
+                    None => coords,
+                },
+            };
+            format!(" | Location: {}", label)
         };
 
         self.cached_weather_info = if let Some(ref weather) = self.current_weather {
@@ -200,9 +220,19 @@ impl LoadingState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::LocationDisplay;
     use crate::weather::types::{PrecipitationUnit, TemperatureUnit, WindSpeedUnit};
 
     fn create_app_state(lat: f64, lon: f64) -> AppState {
+        create_app_state_full(lat, lon, None, LocationDisplay::Coordinates)
+    }
+
+    fn create_app_state_full(
+        lat: f64,
+        lon: f64,
+        city: Option<String>,
+        display: LocationDisplay,
+    ) -> AppState {
         let location = WeatherLocation {
             latitude: lat,
             longitude: lon,
@@ -213,7 +243,7 @@ mod tests {
             wind_speed: WindSpeedUnit::Kmh,
             precipitation: PrecipitationUnit::Mm,
         };
-        let mut app = AppState::new(location, false, units);
+        let mut app = AppState::new(location, city, display, false, units);
 
         let weather = WeatherData {
             condition: WeatherCondition::Clear,
@@ -299,5 +329,75 @@ mod tests {
         println!("Null Island: {}", app.cached_weather_info);
         assert!(app.cached_weather_info.contains("0.00°N"));
         assert!(app.cached_weather_info.contains("0.00°E"));
+    }
+
+    #[test]
+    fn test_display_coordinates_mode() {
+        let mut app = create_app_state_full(
+            34.0754,
+            -84.2941,
+            Some("Alpharetta".to_string()),
+            LocationDisplay::Coordinates,
+        );
+        app.update_cached_info();
+
+        assert!(
+            app.cached_weather_info
+                .contains("Location: 34.08°N, 84.29°W")
+        );
+        assert!(!app.cached_weather_info.contains("Alpharetta"));
+    }
+
+    #[test]
+    fn test_display_city_mode_with_city() {
+        let mut app = create_app_state_full(
+            34.0754,
+            -84.2941,
+            Some("Alpharetta".to_string()),
+            LocationDisplay::City,
+        );
+        app.update_cached_info();
+
+        assert!(app.cached_weather_info.contains("Location: Alpharetta"));
+        assert!(!app.cached_weather_info.contains("34.08°N"));
+    }
+
+    #[test]
+    fn test_display_city_mode_without_city_falls_back() {
+        let mut app = create_app_state_full(34.0754, -84.2941, None, LocationDisplay::City);
+        app.update_cached_info();
+
+        assert!(
+            app.cached_weather_info
+                .contains("Location: 34.08°N, 84.29°W")
+        );
+    }
+
+    #[test]
+    fn test_display_mixed_mode_with_city() {
+        let mut app = create_app_state_full(
+            34.0754,
+            -84.2941,
+            Some("Alpharetta".to_string()),
+            LocationDisplay::Mixed,
+        );
+        app.update_cached_info();
+
+        assert!(
+            app.cached_weather_info
+                .contains("Location: Alpharetta (34.08°N, 84.29°W)")
+        );
+    }
+
+    #[test]
+    fn test_display_mixed_mode_without_city_falls_back() {
+        let mut app = create_app_state_full(34.0754, -84.2941, None, LocationDisplay::Mixed);
+        app.update_cached_info();
+
+        assert!(
+            app.cached_weather_info
+                .contains("Location: 34.08°N, 84.29°W")
+        );
+        assert!(!app.cached_weather_info.contains("("));
     }
 }

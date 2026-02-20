@@ -24,7 +24,9 @@ use std::{io, panic};
 const LONG_VERSION: &str = concat!(
     env!("CARGO_PKG_VERSION"),
     "\n\nWeather data provided by Open-Meteo.com (https://open-meteo.com/)\n",
-    "Data licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
+    "Data licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)\n\n",
+    "Geocoding powered by Nominatim/OpenStreetMap (https://nominatim.openstreetmap.org/)\n",
+    "Data \u{00a9} OpenStreetMap contributors, ODbL (https://www.openstreetmap.org/copyright)"
 );
 
 fn info(silent: bool, msg: &str) {
@@ -36,7 +38,9 @@ fn info(silent: bool, msg: &str) {
 const ABOUT: &str = concat!(
     "Terminal-based ASCII weather application\n\n",
     "Weather data provided by Open-Meteo.com (https://open-meteo.com/)\n",
-    "Data licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)"
+    "Data licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)\n\n",
+    "Geocoding powered by Nominatim/OpenStreetMap (https://nominatim.openstreetmap.org/)\n",
+    "Data \u{00a9} OpenStreetMap contributors, ODbL (https://www.openstreetmap.org/copyright)"
 );
 
 #[derive(Parser)]
@@ -212,10 +216,32 @@ async fn main() -> io::Result<()> {
                 }
                 config.location.latitude = geo_loc.latitude;
                 config.location.longitude = geo_loc.longitude;
+                config.location.city = geo_loc.city;
             }
             Err(e) => {
                 eprintln!("{}", e.user_friendly_message());
             }
+        }
+    }
+
+    // Resolve city name via reverse geocoding when needed but not yet known
+    if config.location.city.is_none()
+        && !config.location.hide
+        && matches!(
+            config.location.display,
+            config::LocationDisplay::City | config::LocationDisplay::Mixed
+        )
+    {
+        info(config.silent, "Resolving city name...");
+        if let Some(city) = geolocation::reverse_geocode(
+            config.location.latitude,
+            config.location.longitude,
+            &config.location.city_name_language,
+        )
+        .await
+        {
+            info(config.silent, &format!("City resolved: {}", city));
+            config.location.city = Some(city);
         }
     }
 
