@@ -164,6 +164,7 @@ pub struct WeatherData {
     pub is_day: bool,
     pub moon_phase: Option<f64>,
     pub timestamp: String,
+    pub attribution: String,
 }
 
 #[derive(Debug, Clone, Copy, serde::Deserialize)]

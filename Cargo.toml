@@ -31,7 +31,7 @@ reqwest = { version = "0.13", features = ["json"] }
 async-trait = "0.1"
 clap = { version = "4.5", features = ["derive"] }
 rand = "0.10"
-chrono = "0.4"
+chrono = {features = ["serde"], version = "0.4"}
 thiserror = "2.0"
 clap_complete = "4.5.66"
 

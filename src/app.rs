@@ -1,13 +1,16 @@
 use crate::animation_manager::AnimationManager;
 use crate::app_state::AppState;
-use crate::config::Config;
+use crate::config::{Config, Provider};
 use crate::error::WeatherError;
 use crate::render::TerminalRenderer;
 use crate::scene::WorldScene;
+use crate::weather::provider::WeatherProvider;
+use crate::weather::provider::met_office::{MetOfficeProvider, MetOfficeProviderConfig};
 use crate::weather::{
     OpenMeteoProvider, WeatherClient, WeatherCondition, WeatherData, WeatherLocation,
 };
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use serde::Deserialize;
 use std::io;
 use std::sync::Arc;
 use std::time::Duration;
@@ -52,6 +55,7 @@ fn generate_offline_weather(rng: &mut impl rand::Rng) -> WeatherData {
         is_day,
         moon_phase: Some(0.5),
         timestamp: now.format("%Y-%m-%dT%H:%M:%S").to_string(),
+        attribution: "".to_string(),
     }
 }
 
@@ -121,6 +125,7 @@ impl App {
                 is_day: !simulate_night,
                 moon_phase: Some(0.5),
                 timestamp: "simulated".to_string(),
+                attribution: "".to_string(),
             };
 
             let rain_intensity = weather.condition.rain_intensity();
@@ -134,7 +139,22 @@ impl App {
             animations.update_snow_intensity(snow_intensity);
             animations.update_wind(wind_speed as f32, wind_direction as f32);
         } else {
-            let provider = Arc::new(OpenMeteoProvider::new());
+
+            let provider = config.provider.keys().into_iter().next().cloned().unwrap_or(Provider::default()); // Pick the first available provider, or default
+
+            let provider: Arc<dyn WeatherProvider> = match provider {
+                Provider::OpenMeteo => Arc::new(OpenMeteoProvider::new()),
+                Provider::MetOffice => {
+                    let provider_config = {
+                        if let Some(provider_config) = config.provider.get(&provider) {
+                            MetOfficeProviderConfig::deserialize(provider_config.clone()).unwrap()
+                        } else { MetOfficeProviderConfig::default() }
+                    };
+
+                    Arc::new(MetOfficeProvider::new(provider_config).unwrap())
+                },
+            };
+
             let weather_client = WeatherClient::new(provider, REFRESH_INTERVAL);
             let units = config.units;
 
@@ -160,49 +180,65 @@ impl App {
 
     pub async fn run(&mut self, renderer: &mut TerminalRenderer) -> io::Result<()> {
         let mut rng = rand::rng();
+        let mut attribution= "Awaiting weather data".to_string();
         loop {
-            if let Ok(result) = self.weather_receiver.try_recv() {
-                match result {
-                    Ok(weather) => {
-                        let rain_intensity = weather.condition.rain_intensity();
-                        let snow_intensity = weather.condition.snow_intensity();
-                        let fog_intensity = weather.condition.fog_intensity();
-                        let wind_speed = weather.wind_speed;
-                        let wind_direction = weather.wind_direction;
+            match self.weather_receiver.try_recv() {
+                Ok(result) => {
+                    match result {
+                        Ok(weather) => {
+                            let rain_intensity = weather.condition.rain_intensity();
+                            let snow_intensity = weather.condition.snow_intensity();
+                            let fog_intensity = weather.condition.fog_intensity();
+                            let wind_speed = weather.wind_speed;
+                            let wind_direction = weather.wind_direction;
+                            attribution = weather.attribution.clone();
 
-                        self.state.update_weather(weather);
-                        self.animations.update_rain_intensity(rain_intensity);
-                        self.animations.update_snow_intensity(snow_intensity);
-                        self.animations.update_fog_intensity(fog_intensity);
-                        self.animations
-                            .update_wind(wind_speed as f32, wind_direction as f32);
-                    }
-                    Err(error) => {
-                        let _error_msg = match &error {
-                            WeatherError::Network(net_err) => net_err.user_friendly_message(),
-                            _ => format!("Failed to fetch weather: {}", error),
-                        };
-
-                        if self.state.current_weather.is_none() {
-                            let offline_weather = generate_offline_weather(&mut rng);
-                            let rain_intensity = offline_weather.condition.rain_intensity();
-                            let snow_intensity = offline_weather.condition.snow_intensity();
-                            let fog_intensity = offline_weather.condition.fog_intensity();
-                            let wind_speed = offline_weather.wind_speed;
-                            let wind_direction = offline_weather.wind_direction;
-
-                            self.state.update_weather(offline_weather);
-                            self.state.set_offline_mode(true);
+                            self.state.update_weather(weather);
                             self.animations.update_rain_intensity(rain_intensity);
                             self.animations.update_snow_intensity(snow_intensity);
                             self.animations.update_fog_intensity(fog_intensity);
                             self.animations
                                 .update_wind(wind_speed as f32, wind_direction as f32);
-                        } else {
-                            self.state.set_offline_mode(true);
+
+                        }
+                        Err(error) => {
+                            let error_msg = match &error {
+                                WeatherError::Network(net_err) => net_err.user_friendly_message(),
+                                _ => format!("Failed to fetch weather: {}", error),
+                            };
+
+                            if self.state.current_weather.is_none() {
+                                attribution = format!("Provider failed with {error_msg} - Simulating");
+                                let offline_weather = generate_offline_weather(&mut rng);
+                                let rain_intensity = offline_weather.condition.rain_intensity();
+                                let snow_intensity = offline_weather.condition.snow_intensity();
+                                let fog_intensity = offline_weather.condition.fog_intensity();
+                                let wind_speed = offline_weather.wind_speed;
+                                let wind_direction = offline_weather.wind_direction;
+
+                                self.state.update_weather(offline_weather);
+                                self.state.set_offline_mode(true);
+                                self.animations.update_rain_intensity(rain_intensity);
+                                self.animations.update_snow_intensity(snow_intensity);
+                                self.animations.update_fog_intensity(fog_intensity);
+                                self.animations
+                                    .update_wind(wind_speed as f32, wind_direction as f32);
+                            } else {
+                                self.state.set_offline_mode(true);
+                                attribution = format!("Provider failed with {error_msg}");
+                            }
                         }
                     }
-                }
+                },
+                Err(e) => {
+                    match e {
+                        mpsc::error::TryRecvError::Disconnected => {
+                            attribution = "Provider failed".to_string();
+                        },
+                        _ => {}
+                        
+                    }
+                },
             }
 
             renderer.clear()?;
@@ -248,6 +284,19 @@ impl App {
                     crossterm::style::Color::Cyan,
                 )?;
             }
+
+            let attribution_x = if term_width > attribution.len() as u16 {
+                term_width - attribution.len() as u16 - 2
+            } else {
+                0
+            };
+            let attribution_y = if term_height > 0 { term_height - 1 } else { 0 };
+            renderer.render_line_colored(
+                attribution_x,
+                attribution_y,
+                &attribution,
+                crossterm::style::Color::DarkGrey,
+            )?;
 
             renderer.flush()?;
 
