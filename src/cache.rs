@@ -21,12 +21,7 @@ struct WeatherCache {
 }
 
 fn get_cache_dir() -> Option<PathBuf> {
-    let cache_dir = if let Ok(xdg_cache) = std::env::var("XDG_CACHE_HOME") {
-        PathBuf::from(xdg_cache)
-    } else {
-        dirs::home_dir()?.join(".cache")
-    };
-    Some(cache_dir.join("weathr"))
+    Some(dirs::cache_dir()?.join("weathr"))
 }
 
 fn current_timestamp() -> u64 {

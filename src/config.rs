@@ -50,17 +50,6 @@ impl Default for Location {
 
 impl Config {
     pub fn load() -> Result<Self, ConfigError> {
-        // try local config.toml
-        if let Ok(cwd) = std::env::current_dir() {
-            let local_config = cwd.join("config.toml");
-            if local_config.exists() {
-                let config = Self::load_from_path(&local_config)?;
-                config.validate()?;
-                return Ok(config);
-            }
-        }
-
-        // try XDG config
         let config_path = Self::get_config_path()?;
 
         if !config_path.exists() {
@@ -97,12 +86,7 @@ impl Config {
     }
 
     fn get_config_path() -> Result<PathBuf, ConfigError> {
-        let config_dir = if let Ok(xdg_config) = std::env::var("XDG_CONFIG_HOME") {
-            PathBuf::from(xdg_config)
-        } else {
-            dirs::config_dir().ok_or(ConfigError::NoConfigDir)?
-        };
-
+        let config_dir = dirs::config_dir().ok_or(ConfigError::NoConfigDir)?;
         Ok(config_dir.join("weathr").join("config.toml"))
     }
 }
