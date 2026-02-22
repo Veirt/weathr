@@ -124,7 +124,6 @@ impl Default for OpenMeteoProvider {
 
 #[async_trait]
 impl WeatherProvider for OpenMeteoProvider {
-
     fn get_attribution(&self) -> &'static str {
         ""
     }

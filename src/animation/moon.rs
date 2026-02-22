@@ -9,15 +9,14 @@ pub struct MoonSystem {
 }
 
 impl MoonSystem {
-    pub fn new(terminal_width: u16, terminal_height: u16) -> Self {
+    pub fn new(terminal_width: u16, terminal_height: u16, phase: Option<f64>) -> Self {
         Self {
-            phase: 0.5,
+            phase: phase.unwrap_or(0.5),
             x: (terminal_width / 4) + 10,
             y: (terminal_height / 4) + 2,
         }
     }
 
-    #[allow(dead_code)]
     pub fn set_phase(&mut self, phase: f64) {
         self.phase = phase;
     }

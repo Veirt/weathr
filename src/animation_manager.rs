@@ -45,7 +45,7 @@ impl AnimationManager {
             bird_system: BirdSystem::new(term_width, term_height),
             airplane_system: AirplaneSystem::new(term_width, term_height),
             star_system: StarSystem::new(term_width, term_height),
-            moon_system: MoonSystem::new(term_width, term_height),
+            moon_system: MoonSystem::new(term_width, term_height, None),
             chimney_smoke: ChimneySmoke::new(),
             firefly_system: FireflySystem::new(term_width, term_height),
             falling_leaves: FallingLeaves::new(term_width, term_height),
@@ -54,6 +54,10 @@ impl AnimationManager {
             last_frame_time: Instant::now(),
             show_leaves,
         }
+    }
+
+    pub fn update_moon_phase(&mut self, phase: f64) {
+        self.moon_system.set_phase(phase);
     }
 
     pub fn update_rain_intensity(&mut self, intensity: RainIntensity) {

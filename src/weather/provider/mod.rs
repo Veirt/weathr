@@ -3,8 +3,9 @@ use crate::weather::types::{WeatherLocation, WeatherUnits};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-pub mod open_meteo;
 pub mod met_office;
+pub mod open_meteo;
+pub mod aad;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeatherProviderResponse {
@@ -33,4 +34,58 @@ pub trait WeatherProvider: Send + Sync {
     ) -> Result<WeatherProviderResponse, WeatherError>;
 
     fn get_attribution(&self) -> &'static str;
+}
+
+#[async_trait]
+/// This trait is used supplement a weather provider if it cannot by itself provide all data for `WeatherProviderResponse`
+/// An Example would be the Met Office doesn't give Sun & Moon information
+pub trait SupplementaryWeatherProvider {
+    async fn get_supplementary_weather(
+        &self,
+        location: &WeatherLocation,
+        units: &WeatherUnits,
+        wanted: SupplementaryProviderRequest,
+    ) -> Result<SupplementaryProviderResponse, WeatherError>;
+
+    fn get_attribution(&self) -> &'static str;
+
+    fn capabilites(&self) -> Vec<SupplementaryProviderRequest>;
+}
+
+/// Helper macro
+macro_rules! provider_enums {
+    (
+        $(
+            $name:ident
+            $payload:tt
+        ),* $(,)?
+    ) => {
+        pub enum SupplementaryProviderRequest {
+            $(
+                $name,
+            )*
+        }
+
+        pub enum SupplementaryProviderResponse {
+            $(
+                $name $payload,
+            )*
+        }
+    };
+
+    (@expand_variant $name:ident ( $($inner:tt)* )) => {
+        $name($($inner)*)
+    };
+
+    (@expand_variant $name:ident { $($inner:tt)* }) => {
+        $name { $($inner)* }
+    };
+}
+
+provider_enums! {
+    PhasesOfMoon(Option<f64>),
+    SunAndMoonForOneDay {
+        is_day: bool, // Consider i32 if support for twilight is added
+        moon_phase: Option<f64>
+    }
 }
