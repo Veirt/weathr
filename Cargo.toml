@@ -27,7 +27,8 @@ tokio = { version = "1", features = [
     "signal",
     "fs",
 ] }
-reqwest = { version = "0.13", features = ["json"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider", "http2", "charset", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 async-trait = "0.1"
 clap = { version = "4.5", features = ["derive"] }
 rand = "0.10"
