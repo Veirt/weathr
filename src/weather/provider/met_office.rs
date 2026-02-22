@@ -1,13 +1,12 @@
-use std::{collections::HashMap, fs, sync::{Arc}};
+use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use reqwest::header;
 use serde::Deserialize;
-use serde_json::Value;
 use tokio::sync::Mutex;
 
-use crate::{config, error::{ConfigError, NetworkError, WeatherError}, weather::{WeatherLocation, WeatherUnits, provider::{WeatherProvider, WeatherProviderResponse}, units::{normalize_precipitation, normalize_temperature, normalize_wind_speed}}};
+use crate::{error::{ConfigError, NetworkError, WeatherError}, weather::{WeatherLocation, WeatherUnits, provider::{WeatherProvider, WeatherProviderResponse}, units::{fahrenheit_to_celsius, normalize_temperature}}};
 
 const BASE_URL: &str = "https://data.hub.api.metoffice.gov.uk/sitespecific/v0";
 
@@ -55,8 +54,8 @@ impl MetOfficeProvider {
         let client = client.build().map_err(|e| { WeatherError::Network(NetworkError::Other(e)) })?;
 
         Ok(Self {
-            client: client,
-            config: config,
+            client,
+            config,
             last_weather_results: Mutex::new(None),
         })
     }
@@ -90,17 +89,16 @@ impl MetOfficeProvider {
 
     fn get_current_time_series(data: &MetOfficeResponse) -> Option<MetOfficeTimeSeries> {
         
-        for feature in &data.features {
+        if let Some(feature) = data.features.first() {
 
             let item = feature.properties.time_series.clone().into_iter().find(|item| {
-                let time = item.time.replace("Z", ":00Z");
+                let time = item.time.replace("Z", ":00Z"); // The Met Office returns the time in a loose format
                 let start: DateTime<Utc> = time.parse().unwrap();
                 let end = start + chrono::Duration::hours(1);
                 Utc::now() >= start && Utc::now() <= end
             });
 
             return item;
-                
         }
 
         None
@@ -126,7 +124,7 @@ impl WeatherProvider for MetOfficeProvider {
             match previous_data_lock.clone() {
                 Some(data) => {data},
                 None => {
-                    let data = self.do_api_req(&location).await?;
+                    let data = self.do_api_req(location).await?;
                     *previous_data_lock = Some(data.clone());
                     data
                 },
@@ -145,7 +143,7 @@ impl WeatherProvider for MetOfficeProvider {
         Ok(
             WeatherProviderResponse {
                 weather_code: current_weather.significant_weather_code,
-                temperature: current_weather.screen_temperature,
+                temperature: current_weather.normalize_screen_temperature(units, &data.parameters),
                 apparent_temperature: current_weather.feels_like_temperature,
                 humidity: current_weather.screen_relative_humidity,
                 precipitation: current_weather.percipitation_rate,
@@ -154,7 +152,7 @@ impl WeatherProvider for MetOfficeProvider {
                 cloud_cover: current_weather.uv_index as f64, // Unsure if this is correct
                 pressure: current_weather.mslp as f64,
                 visibility: Some(current_weather.visibility as f64),
-                is_day: 1, // TODO
+                is_day: current_weather.uv_index as i32, // TODO - The MetOffice doesn't have a day/night indicator, either another API call or a calculation
                 moon_phase,
                 timestamp: current_weather.time,
                 attribution: self.get_attribution().to_string(),
@@ -163,14 +161,17 @@ impl WeatherProvider for MetOfficeProvider {
     }
 }
 
+pub type MetOfficeParameters = Vec<HashMap<String, MetOfficeParameter>>;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct MetOfficeResponse {
     pub features: Vec<MetOfficeFeatures>,
-    pub parameters: Vec<HashMap<String, MetOfficeParameter>> // This contains the definitions to convert unclean to clean
+    pub parameters: MetOfficeParameters // This contains the definitions to convert unclean to clean
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MetOfficeParameter {
+    #[allow(unused)]
     pub description: String,
     #[serde(rename = "type")]
     pub type_: String,
@@ -180,28 +181,33 @@ pub struct MetOfficeParameter {
 #[derive(Debug, Clone, Deserialize)]
 pub struct MetOfficeParameterUnit {
     pub label: String,
+    #[allow(unused)]
     pub symbol: HashMap<String, String>
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MetOfficeFeatures {
+    #[allow(unused)]
     pub geometry: MetOfficeGeometry,
     pub properties: MetOfficeProperties
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MetOfficeProperties {
+    /// Contains human readable information about the location, also includes license information
+    /// TODO: Solves - https://github.com/Veirt/weathr/issues/12
+    #[allow(unused)]
     pub location: Option<HashMap<String, String>>, // This is sometimes omitted
     #[serde(rename = "modelRunDate")]
-    pub model_run_date: String,
+    pub _model_run_date: String,
     #[serde(rename = "requestPointDistance")]
-    pub request_point_distance: f64,
+    pub _request_point_distance: f64,
     #[serde(rename = "timeSeries")]
     pub time_series: Vec<MetOfficeTimeSeries> // This contains unclean weather
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct MetOfficeTimeSeries { // Weather even Per Hour
+pub struct MetOfficeTimeSeries { // Weather event Per Hour
     #[serde(rename = "feelsLikeTemperature")]
     pub feels_like_temperature: f64,
     
@@ -211,10 +217,10 @@ pub struct MetOfficeTimeSeries { // Weather even Per Hour
     pub percipitation_rate: f64,
 
     #[serde(rename = "probOfPrecipitation")]
-    pub probability_of_precipitation: f64,
+    pub _probability_of_precipitation: f64,
 
     #[serde(rename = "screenDewPointTemperature")]
-    pub screen_dew_point_temp: f64,
+    pub _screen_dew_point_temp: f64,
 
     #[serde(rename = "screenRelativeHumidity")]
     pub screen_relative_humidity: f64,
@@ -239,10 +245,41 @@ pub struct MetOfficeTimeSeries { // Weather even Per Hour
     pub wind_gust_speed_10m: f64,
 
     #[serde(rename = "windSpeed10m")]
-    pub wind_speed_10m: f64
+    pub _wind_speed_10m: f64
 
 }
 
+impl MetOfficeTimeSeries {
+    /// This function will attempt to normalize the data
+    /// If the Met Office doesn't response with the unit of the field, assume its C per Weights and Measures Act 1985
+    pub fn normalize_screen_temperature(&self, units: &WeatherUnits, param: &MetOfficeParameters) -> f64 {
+        
+        if let Some(param) = Self::find_param(param, "screenTemperature") && param.type_ == "Parameter" {
+            if param.unit.label == "degrees Celsius" {
+                normalize_temperature(self.screen_temperature, units.temperature)
+            } else {
+                normalize_temperature(fahrenheit_to_celsius(self.screen_temperature), units.temperature)
+            }
+
+        } else {
+            normalize_temperature(self.screen_temperature, units.temperature)
+        }
+        
+    }
+
+    fn find_param(param: &MetOfficeParameters, name: &str) -> Option<MetOfficeParameter> {
+        for p in param {
+            for (k, v) in p {
+                if k == name {
+                    return Some(v.clone());
+                }
+            }
+        }
+        None
+    }
+}
+
+#[allow(unused)] // TODO: Display this on the UI
 #[derive(Debug, Clone, Deserialize)]
 pub struct MetOfficeGeometry {
     pub coordinates: Vec<f32>,
@@ -250,17 +287,49 @@ pub struct MetOfficeGeometry {
     pub type_: String
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct BadMetOfficeResponse {
-    pub logref: String,
-    pub message: String
-}
-
 #[cfg(test)]
 mod tests {
     use std::env;
 
+    use serde_json::Value;
+
     use super::*;
+
+    #[tokio::test]
+    async fn test_response_parse() {
+        let api_key = env::var("MET_OFFICE_API_KEY").unwrap();
+
+        let location = WeatherLocation {
+            latitude: 52.52,
+            longitude: 13.41,
+            elevation: None,
+        };
+
+        let provider_cfg = MetOfficeProviderConfig {
+            include_location_name: true,
+            api_key,
+            ..Default::default()
+        };
+
+        let provider = MetOfficeProvider::new(provider_cfg).unwrap();
+        let url = provider.build_url(&location);
+
+        let response = provider
+            .client
+            .get(&url)
+            .send()
+            .await.unwrap();
+
+        let data: Value = response
+            .json()
+            .await
+            .unwrap();
+
+        println!("{data:#?}");
+
+        let _: MetOfficeResponse = serde_json::from_value(data).unwrap();
+
+    }
 
     #[tokio::test]
     async fn test_met_office_provider() {
@@ -281,17 +350,6 @@ mod tests {
 
         let response = provider.get_current_weather(&location, &WeatherUnits::default()).await.unwrap();
         println!("{response:#?}");
-    }
-
-    #[test]
-    fn parse_test() {
-        let data = fs::read_to_string("./latest.json");
-
-        let data: MetOfficeResponse = serde_json::from_str(data.unwrap().as_str()).unwrap();
-
-        let current_weather = MetOfficeProvider::get_current_time_series(&data);
-
-        println!("{current_weather:#?}");
     }
 
 }
