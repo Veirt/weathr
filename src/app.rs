@@ -140,7 +140,7 @@ impl App {
             animations.update_wind(wind_speed as f32, wind_direction as f32);
         } else {
 
-            let provider = config.provider.keys().into_iter().next().cloned().unwrap_or(Provider::default()); // Pick the first available provider, or default
+            let provider = config.provider.keys().next().cloned().unwrap_or(Provider::default()); // Pick the first available provider, or default
 
             let provider: Arc<dyn WeatherProvider> = match provider {
                 Provider::OpenMeteo => Arc::new(OpenMeteoProvider::new()),
@@ -231,12 +231,8 @@ impl App {
                     }
                 },
                 Err(e) => {
-                    match e {
-                        mpsc::error::TryRecvError::Disconnected => {
-                            attribution = "Provider failed".to_string();
-                        },
-                        _ => {}
-                        
+                    if e == mpsc::error::TryRecvError::Disconnected {
+                        attribution = "Provider failed".to_string();
                     }
                 },
             }
@@ -285,7 +281,7 @@ impl App {
                 )?;
             }
 
-            // Render attribution - Required by some providers
+            // Render attribution - Required by some providers this undoes commit: 55a3dbf84ec70de3614f3b8a044f15d488e9d149
             let attribution_x = if term_width > attribution.len() as u16 {
                 term_width - attribution.len() as u16 - 2
             } else {
