@@ -5,60 +5,83 @@ use chrono::{Local, NaiveTime};
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::{error::{NetworkError, WeatherError}, weather::{WeatherLocation, WeatherUnits, provider::{SupplementaryProviderRequest, SupplementaryProviderResponse, SupplementaryWeatherProvider}}};
+use crate::{
+    error::{NetworkError, WeatherError},
+    weather::{
+        WeatherLocation, WeatherUnits,
+        provider::{
+            SupplementaryProviderRequest, SupplementaryProviderResponse,
+            SupplementaryWeatherProvider,
+        },
+    },
+};
 
 const BASE_URL: &str = "https://aa.usno.navy.mil/api/";
 
 pub struct AADProvider;
+
+impl Default for AADProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AADProvider {
     pub fn new() -> Self {
         Self
     }
 
-    fn build_url(&self, wanted: &SupplementaryProviderRequest, location: &WeatherLocation) -> String {
+    fn build_url(
+        &self,
+        wanted: &SupplementaryProviderRequest,
+        location: &WeatherLocation,
+    ) -> String {
         let now = chrono::Local::now();
         let date = now.format("%Y-%m-%d").to_string();
         let offset_seconds = now.offset().local_minus_utc();
         let offset_hours = offset_seconds / 3600;
 
         match wanted {
-            SupplementaryProviderRequest::PhasesOfMoon => format!("{BASE_URL}moon/phases/date?date={date}&nump=1"),
+            SupplementaryProviderRequest::PhasesOfMoon => {
+                format!("{BASE_URL}moon/phases/date?date={date}&nump=1")
+            }
             SupplementaryProviderRequest::SunAndMoonForOneDay => {
-                format!("{BASE_URL}rstt/oneday?date={date}&coords={},{}&tz={}&dst=true", location.latitude, location.longitude,offset_hours)
-            },
+                format!(
+                    "{BASE_URL}rstt/oneday?date={date}&coords={},{}&tz={}&dst=true",
+                    location.latitude, location.longitude, offset_hours
+                )
+            }
         }
     }
 
     fn convert_string_to_moon_pahse(value: &str) -> f64 {
         match value {
             // New Moon
-            "Waxing Crescent" => { 0.15 }
-            "First Quarter" => { 0.25 }
-            "Waxing Gibbous" => { 0.35 }
-            "Full Moon" => { 0.5 }
-            "Waning Gibbous" => { 0.65 }
-            "Last Quarter" => { 0.75 }
-            "Waning Crescent" => { 0.85 }
-            "New Moon" | _ => { 0.0 }
+            "Waxing Crescent" => 0.15,
+            "First Quarter" => 0.25,
+            "Waxing Gibbous" => 0.35,
+            "Full Moon" => 0.5,
+            "Waning Gibbous" => 0.65,
+            "Last Quarter" => 0.75,
+            "Waning Crescent" => 0.85,
+            _ => 0.0, // New Moon
         }
     }
-
 }
 
 #[async_trait]
 impl SupplementaryWeatherProvider for AADProvider {
-
     async fn get_supplementary_weather(
         &self,
         location: &WeatherLocation,
-        units: &WeatherUnits,
-        wanted: SupplementaryProviderRequest
+        #[allow(unused_variables)] units: &WeatherUnits,
+        wanted: SupplementaryProviderRequest,
     ) -> Result<SupplementaryProviderResponse, WeatherError> {
-
         let url = self.build_url(&wanted, location);
 
-        let response = reqwest::get(&url).await.map_err(|e| WeatherError::Network(NetworkError::from_reqwest(e, &url, 30)))?;
+        let response = reqwest::get(&url)
+            .await
+            .map_err(|e| WeatherError::Network(NetworkError::from_reqwest(e, &url, 30)))?;
 
         let data: Value = response
             .json()
@@ -68,7 +91,8 @@ impl SupplementaryWeatherProvider for AADProvider {
         let now = Local::now();
 
         match wanted {
-            SupplementaryProviderRequest::PhasesOfMoon => { // TODO: Consider using the Fracillum / 10
+            SupplementaryProviderRequest::PhasesOfMoon => {
+                // TODO: Consider using the Fracillum / 10
                 let phase_data = &data["phasedata"];
 
                 let phases: Vec<MoonPhase> = serde_json::from_value(phase_data.clone()).unwrap();
@@ -77,31 +101,40 @@ impl SupplementaryWeatherProvider for AADProvider {
 
                 let phase = AADProvider::convert_string_to_moon_pahse(&current_phase.phase);
                 Ok(SupplementaryProviderResponse::PhasesOfMoon(Some(phase)))
-            },
+            }
             SupplementaryProviderRequest::SunAndMoonForOneDay => {
                 let data = &data["properties"]["data"];
-                let current_moon_phase = Self::convert_string_to_moon_pahse(data["curphase"].as_str().unwrap());
-                let sun_data: Vec<SunData> = serde_json::from_value(data["sundata"].clone()).unwrap();
+                let current_moon_phase =
+                    Self::convert_string_to_moon_pahse(data["curphase"].as_str().unwrap());
+                let sun_data: Vec<SunData> =
+                    serde_json::from_value(data["sundata"].clone()).unwrap();
 
-                let sunrise = get_sun_phase(&sun_data, CelestialPhenomena::Rise).unwrap().to_chrono_time();
-                let sunset = get_sun_phase(&sun_data, CelestialPhenomena::Set).unwrap().to_chrono_time();
+                let sunrise = get_sun_phase(&sun_data, CelestialPhenomena::Rise)
+                    .unwrap()
+                    .to_chrono_time();
+                let sunset = get_sun_phase(&sun_data, CelestialPhenomena::Set)
+                    .unwrap()
+                    .to_chrono_time();
                 let current_time = now.time();
 
-                Ok(SupplementaryProviderResponse::SunAndMoonForOneDay{ is_day: current_time > sunrise && current_time < sunset, moon_phase: Some(current_moon_phase) })
-
-            },
+                Ok(SupplementaryProviderResponse::SunAndMoonForOneDay {
+                    is_day: current_time > sunrise && current_time < sunset,
+                    moon_phase: Some(current_moon_phase),
+                })
+            }
         }
-
     }
 
-    fn get_attribution(&self) -> &'static str { "" }
+    fn get_attribution(&self) -> &'static str {
+        ""
+    }
 
     fn capabilites(&self) -> Vec<SupplementaryProviderRequest> {
         vec![SupplementaryProviderRequest::PhasesOfMoon]
     }
 }
 
-fn get_sun_phase(sun_data: &Vec<SunData>, target: CelestialPhenomena) -> Option<&SunData> {
+fn get_sun_phase(sun_data: &[SunData], target: CelestialPhenomena) -> Option<&SunData> {
     sun_data.iter().find(|item| item.phen == target)
 }
 
@@ -138,11 +171,7 @@ impl SunData {
     }
 
     fn to_chrono_time(&self) -> NaiveTime {
-        
-        let target_time =
-            NaiveTime::parse_from_str(&self.get_time(), "%H:%M").unwrap();
-
-        target_time
+        NaiveTime::parse_from_str(&self.get_time(), "%H:%M").unwrap()
     }
 }
 
@@ -159,13 +188,16 @@ mod test {
         let offset_hours = offset_seconds / 3600;
         println!("{date} {offset_hours}");
 
-       let location = WeatherLocation {
+        let location = WeatherLocation {
             latitude: 52.52,
             longitude: 13.41,
             elevation: None,
         };
 
-        println!("{BASE_URL}rstt/oneday?date={date}&coords={},{}&tz={}&dst=true", location.latitude, location.longitude,offset_hours);
+        println!(
+            "{BASE_URL}rstt/oneday?date={date}&coords={},{}&tz={}&dst=true",
+            location.latitude, location.longitude, offset_hours
+        );
     }
 
     #[test]

@@ -36,7 +36,7 @@ Currently there is 1 Sup-provider which is the US Government Astronomical Applic
 
 These types of providers are meant to be small & suppliment other providers data in the event they are missing data, an example is the MetOffice provider doesn't provide any atronomical data, instead the provider will make another request to get that data
 
-## Adding providers
+## Guide: Adding providers
 
 ### Creating the provider
 There are 2 types of providers a `WeatherProvider` and a `SupplementaryWeatherProvider`, a provider can be both a supplementary provider and a "primary" provider
@@ -46,11 +46,13 @@ There are 2 types of providers a `WeatherProvider` and a `SupplementaryWeatherPr
 #### Must Haves
 Your new provider must use a trait, it can be either `WeatherProvider` or `SupplementaryWeatherProvider`
 
-
 ### Making the primary provider useful
 Add in `src/config.rs` the `Provider` enum the provider name
 
 Then `src/app.rs` in `App::new` a match at line 139 to map the `Provider` enum to a provider, there is where you add your provider's initialisation 
+
+#### Provider Configs
+A providers config there is no format a provider config will look, only expected fields, currently if a field is missing panic with a nice message, an example would be the `MetOffice` provider
 
 ### Making the supplementary provider useful
 Currently supplementary are ad-hoc, the trait is useful for further improvements

@@ -139,8 +139,12 @@ impl App {
             animations.update_snow_intensity(snow_intensity);
             animations.update_wind(wind_speed as f32, wind_direction as f32);
         } else {
-
-            let provider = config.provider.keys().next().cloned().unwrap_or(Provider::default()); // Pick the first available provider, or default
+            let provider = config
+                .provider
+                .keys()
+                .next()
+                .cloned()
+                .unwrap_or(Provider::default()); // Pick the first available provider, or default
 
             let provider: Arc<dyn WeatherProvider> = match provider {
                 Provider::OpenMeteo => Arc::new(OpenMeteoProvider::new()),
@@ -148,11 +152,13 @@ impl App {
                     let provider_config = {
                         if let Some(provider_config) = config.provider.get(&provider) {
                             MetOfficeProviderConfig::deserialize(provider_config.clone()).unwrap()
-                        } else { MetOfficeProviderConfig::default() }
+                        } else {
+                            MetOfficeProviderConfig::default()
+                        }
                     };
 
                     Arc::new(MetOfficeProvider::new(provider_config).unwrap())
-                },
+                }
             };
 
             let weather_client = WeatherClient::new(provider, REFRESH_INTERVAL);
@@ -180,65 +186,62 @@ impl App {
 
     pub async fn run(&mut self, renderer: &mut TerminalRenderer) -> io::Result<()> {
         let mut rng = rand::rng();
-        let mut attribution= "Awaiting weather data".to_string();
+        let mut attribution = "Awaiting weather data".to_string();
         loop {
             match self.weather_receiver.try_recv() {
-                Ok(result) => {
-                    match result {
-                        Ok(weather) => {
-                            let rain_intensity = weather.condition.rain_intensity();
-                            let snow_intensity = weather.condition.snow_intensity();
-                            let fog_intensity = weather.condition.fog_intensity();
-                            let wind_speed = weather.wind_speed;
-                            let wind_direction = weather.wind_direction;
-                            attribution = weather.attribution.clone();
+                Ok(result) => match result {
+                    Ok(weather) => {
+                        let rain_intensity = weather.condition.rain_intensity();
+                        let snow_intensity = weather.condition.snow_intensity();
+                        let fog_intensity = weather.condition.fog_intensity();
+                        let wind_speed = weather.wind_speed;
+                        let wind_direction = weather.wind_direction;
+                        attribution = weather.attribution.clone();
 
-                            if let Some(moon_phase ) = weather.moon_phase {
-                                self.animations.update_moon_phase(moon_phase);
-                            }
+                        if let Some(moon_phase) = weather.moon_phase {
+                            self.animations.update_moon_phase(moon_phase);
+                        }
 
-                            self.state.update_weather(weather);
+                        self.state.update_weather(weather);
+                        self.animations.update_rain_intensity(rain_intensity);
+                        self.animations.update_snow_intensity(snow_intensity);
+                        self.animations.update_fog_intensity(fog_intensity);
+                        self.animations
+                            .update_wind(wind_speed as f32, wind_direction as f32);
+                    }
+                    Err(error) => {
+                        let error_msg = match &error {
+                            WeatherError::Network(net_err) => net_err.user_friendly_message(),
+                            _ => format!("Failed to fetch weather: {}", error),
+                        };
+
+                        if self.state.current_weather.is_none() {
+                            attribution = format!("Provider failed with {error_msg} - Simulating");
+                            let offline_weather = generate_offline_weather(&mut rng);
+                            let rain_intensity = offline_weather.condition.rain_intensity();
+                            let snow_intensity = offline_weather.condition.snow_intensity();
+                            let fog_intensity = offline_weather.condition.fog_intensity();
+                            let wind_speed = offline_weather.wind_speed;
+                            let wind_direction = offline_weather.wind_direction;
+
+                            self.state.update_weather(offline_weather);
+                            self.state.set_offline_mode(true);
                             self.animations.update_rain_intensity(rain_intensity);
                             self.animations.update_snow_intensity(snow_intensity);
                             self.animations.update_fog_intensity(fog_intensity);
                             self.animations
                                 .update_wind(wind_speed as f32, wind_direction as f32);
-
-                        }
-                        Err(error) => {
-                            let error_msg = match &error {
-                                WeatherError::Network(net_err) => net_err.user_friendly_message(),
-                                _ => format!("Failed to fetch weather: {}", error),
-                            };
-
-                            if self.state.current_weather.is_none() {
-                                attribution = format!("Provider failed with {error_msg} - Simulating");
-                                let offline_weather = generate_offline_weather(&mut rng);
-                                let rain_intensity = offline_weather.condition.rain_intensity();
-                                let snow_intensity = offline_weather.condition.snow_intensity();
-                                let fog_intensity = offline_weather.condition.fog_intensity();
-                                let wind_speed = offline_weather.wind_speed;
-                                let wind_direction = offline_weather.wind_direction;
-
-                                self.state.update_weather(offline_weather);
-                                self.state.set_offline_mode(true);
-                                self.animations.update_rain_intensity(rain_intensity);
-                                self.animations.update_snow_intensity(snow_intensity);
-                                self.animations.update_fog_intensity(fog_intensity);
-                                self.animations
-                                    .update_wind(wind_speed as f32, wind_direction as f32);
-                            } else {
-                                self.state.set_offline_mode(true);
-                                attribution = format!("Provider failed with {error_msg}");
-                            }
+                        } else {
+                            self.state.set_offline_mode(true);
+                            attribution = format!("Provider failed with {error_msg}");
                         }
                     }
                 },
                 Err(e) => {
                     if e == mpsc::error::TryRecvError::Disconnected {
-                        attribution = "Provider failed".to_string();
+                        attribution = "".to_string();
                     }
-                },
+                }
             }
 
             renderer.clear()?;
