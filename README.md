@@ -50,10 +50,13 @@ brew install Veirt/veirt/weathr
 ### Arch Linux
 
 Available in AUR:
+
 ```bash
 yay -S weathr
 ```
-or 
+
+or
+
 ```bash
 yay -S weathr-bin
 ```
@@ -61,18 +64,23 @@ yay -S weathr-bin
 ### Nix flake (NixOS)
 
 Available as a flake:
+
 ```nix
 inputs = {
     weathr.url = "github:Veirt/weathr";
 };
 ```
+
 Add to packages:
+
 ```nix
 environment.systemPackages = [
     inputs.weathr.packages.${system}.default
 ];
 ```
+
 or use home-manager module option:
+
 ```nix
 imports = [
     inputs.weathr.homeModules.weathr
@@ -89,10 +97,10 @@ programs.weathr = {
 ### Windows
 
 Available through Winget:
+
 ```
 winget install -i Veirt.weathr
 ```
-
 
 ## Configuration
 
@@ -131,14 +139,25 @@ silent = false
 
 [location]
 # Location coordinates (overridden if auto = true)
-latitude = 40.7128
-longitude = -74.0060
+latitude = 52.5200
+longitude = 13.4050
 
 # Auto-detect location via IP (defaults to true if config missing)
 auto = false
 
 # Hide the location name in the UI
 hide = false
+
+# How to display the location in the HUD: "coordinates" | "city" | "mixed"
+display = "mixed"
+
+# Optional: manually override the city name shown in the HUD.
+# When set, skips reverse geocoding entirely.
+# city = "Berlin"
+
+# Language for the resolved city name. "auto" uses the locale of the coordinates.
+# Accepts BCP-47 language tags: "en", "de", "ru", "ja", etc.
+# city_name_language = "auto"
 
 [units]
 # Temperature unit: "celsius" or "fahrenheit"
@@ -150,6 +169,18 @@ wind_speed = "kmh"
 # Precipitation unit: "mm" or "inch"
 precipitation = "mm"
 ```
+
+### Location Display Modes
+
+The `display` option controls how the location appears in the HUD. City names are resolved
+via reverse geocoding (Nominatim/OpenStreetMap). When a city cannot be resolved (e.g. open
+sea or no Nominatim match), all modes fall back to showing coordinates.
+
+| Mode          | City resolved                         | City not resolved            |
+| :------------ | :------------------------------------ | :--------------------------- |
+| `coordinates` | `Location: 52.52°N, 13.41°E`          | `Location: 52.52°N, 13.41°E` |
+| `city`        | `Location: Berlin`                    | `Location: 52.52°N, 13.41°E` |
+| `mixed`       | `Location: Berlin (52.52°N, 13.41°E)` | `Location: 52.52°N, 13.41°E` |
 
 ### Example Locations
 
@@ -261,6 +292,11 @@ GPL-3.0-or-later
 ### Weather Data
 
 Weather data provided by [Open-Meteo.com](https://open-meteo.com/) under the [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/).
+
+### Geocoding
+
+City name resolution powered by [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap).
+Data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), licensed under [ODbL](https://opendatacommons.org/licenses/odbl/).
 
 ### ASCII Art
 
