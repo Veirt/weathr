@@ -6,7 +6,7 @@ use reqwest::header;
 use serde::Deserialize;
 use tokio::sync::Mutex;
 
-use crate::{error::{ConfigError, NetworkError, WeatherError}, weather::{WeatherLocation, WeatherUnits, provider::{WeatherProvider, WeatherProviderResponse}, units::{fahrenheit_to_celsius, normalize_temperature}}};
+use crate::{error::{ConfigError, NetworkError, WeatherError}, weather::{WeatherLocation, WeatherUnits, provider::{SupplementaryProviderRequest, SupplementaryProviderResponse, SupplementaryWeatherProvider, WeatherProvider, WeatherProviderResponse, aad::AADProvider}, units::{fahrenheit_to_celsius, normalize_temperature}}};
 
 const BASE_URL: &str = "https://data.hub.api.metoffice.gov.uk/sitespecific/v0";
 
@@ -139,25 +139,34 @@ impl WeatherProvider for MetOfficeProvider {
             return Err(WeatherError::Network(NetworkError::ConnectionRefused { url: self.build_url(location) })) // Don't have a error type for this
             // this is likely never to occur
         };
+
+        let mut current_weather = WeatherProviderResponse {
+            weather_code: current_weather.significant_weather_code,
+            temperature: current_weather.normalize_screen_temperature(units, &data.parameters),
+            apparent_temperature: current_weather.feels_like_temperature,
+            humidity: current_weather.screen_relative_humidity,
+            precipitation: current_weather.percipitation_rate,
+            wind_speed: current_weather.wind_gust_speed_10m,
+            wind_direction: current_weather.wind_direction_from_10m as f64,
+            cloud_cover: current_weather.uv_index as f64, // Unsure if this is correct
+            pressure: current_weather.mslp as f64,
+            visibility: Some(current_weather.visibility as f64),
+            is_day: current_weather.uv_index as i32, // TODO - The MetOffice doesn't have a day/night indicator, either another API call or a calculation
+            moon_phase,
+            timestamp: current_weather.time,
+            attribution: self.get_attribution().to_string(),
+        };
+
+        // A provider should ask something else if it doesn't have the data, the provider shouldn't have to care about
+        // what supplementary data provider to use, rather if it can get the data or not, for now I will
+        let sup_provider = AADProvider::new();
+        let celestial_data = sup_provider.get_supplementary_weather(location, units, SupplementaryProviderRequest::SunAndMoonForOneDay).await?;
+        if let SupplementaryProviderResponse::SunAndMoonForOneDay{ is_day, moon_phase } = celestial_data {
+            current_weather.is_day = if is_day { 1 } else { 0};
+            current_weather.moon_phase = moon_phase;
+        }
         
-        Ok(
-            WeatherProviderResponse {
-                weather_code: current_weather.significant_weather_code,
-                temperature: current_weather.normalize_screen_temperature(units, &data.parameters),
-                apparent_temperature: current_weather.feels_like_temperature,
-                humidity: current_weather.screen_relative_humidity,
-                precipitation: current_weather.percipitation_rate,
-                wind_speed: current_weather.wind_gust_speed_10m,
-                wind_direction: current_weather.wind_direction_from_10m as f64,
-                cloud_cover: current_weather.uv_index as f64, // Unsure if this is correct
-                pressure: current_weather.mslp as f64,
-                visibility: Some(current_weather.visibility as f64),
-                is_day: current_weather.uv_index as i32, // TODO - The MetOffice doesn't have a day/night indicator, either another API call or a calculation
-                moon_phase,
-                timestamp: current_weather.time,
-                attribution: self.get_attribution().to_string(),
-            }
-        )
+        Ok(current_weather)
     }
 }
 
@@ -296,6 +305,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore = "Requires API which fails CI"]
     async fn test_response_parse() {
         let api_key = env::var("MET_OFFICE_API_KEY").unwrap();
 
@@ -332,6 +342,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Requires API which fails CI"]
     async fn test_met_office_provider() {
         let api_key = env::var("MET_OFFICE_API_KEY").unwrap();
         let provider_cfg = MetOfficeProviderConfig {

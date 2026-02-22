@@ -43,7 +43,9 @@ impl WeatherClient {
         }
 
         if let Some(cached_data) =
-            cache::load_cached_weather(location.latitude, location.longitude).await && std::env::var("CACHE_DISABLED").is_err() // Should've done this sooner
+            cache::load_cached_weather(location.latitude, location.longitude).await
+            && std::env::var("CACHE_DISABLED").is_err()
+        // Should've done this sooner
         {
             let mut cache = self.cache.write().await;
             *cache = Some(CachedWeather {

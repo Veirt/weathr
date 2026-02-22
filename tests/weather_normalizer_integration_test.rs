@@ -50,7 +50,7 @@ fn test_weather_normalizer_integration_all_wmo_codes() {
             is_day: 1,
             moon_phase: None,
             timestamp: "2024-01-01T12:00".to_string(),
-        attribution: "".to_string(),
+            attribution: "".to_string(),
         };
 
         let weather = WeatherNormalizer::normalize(response);

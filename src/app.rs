@@ -193,6 +193,10 @@ impl App {
                             let wind_direction = weather.wind_direction;
                             attribution = weather.attribution.clone();
 
+                            if let Some(moon_phase ) = weather.moon_phase {
+                                self.animations.update_moon_phase(moon_phase);
+                            }
+
                             self.state.update_weather(weather);
                             self.animations.update_rain_intensity(rain_intensity);
                             self.animations.update_snow_intensity(snow_intensity);

@@ -4,6 +4,7 @@ use toml::Table;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use toml::Table;
 
 use crate::error::ConfigError;
 use crate::weather::types::WeatherUnits;
@@ -31,14 +32,14 @@ pub struct Config {
     #[serde(default)]
     pub silent: bool,
     #[serde(default)]
-    pub provider: HashMap<Provider, Table>
+    pub provider: HashMap<Provider, Table>,
 }
 
 #[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum Provider {
     #[default]
     OpenMeteo,
-    MetOffice
+    MetOffice,
 }
 
 #[derive(Deserialize, Debug, Clone)]
