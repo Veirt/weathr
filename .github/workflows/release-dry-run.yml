@@ -1,19 +1,17 @@
-name: Release
+name: Release Dry Run
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  build-release:
-    name: Build Release
+  build-dry-run:
+    name: Build Dry Run
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -73,13 +71,13 @@ jobs:
             use_cross: true
 
     steps:
-      - uses: actions/checkout@v6
-      
+      - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           targets: ${{ matrix.target }}
-          
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
@@ -95,29 +93,3 @@ jobs:
       - name: Build (with cargo)
         if: matrix.use_cross != true
         run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Prepare Asset
-        shell: bash
-        run: |
-          cd target/${{ matrix.target }}/release
-          cp ${{ matrix.artifact_name }} ../../../${{ matrix.asset_name }}
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: ${{ matrix.asset_name }}
-
-  publish-crate:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Publish
-        run: cargo publish --token ${{ secrets.CARGO_TOKEN }}
