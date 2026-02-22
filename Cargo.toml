@@ -35,8 +35,6 @@ chrono = "0.4"
 thiserror = "2.0"
 clap_complete = "4.5.66"
 dialoguer = { version = "0.12", features = ["fuzzy-select"] }
-console = "0.16"
-url = "2"
 
 [profile.release]
 lto = "thin"

@@ -2125,7 +2125,6 @@ dependencies = [
  "chrono",
  "clap",
  "clap_complete",
- "console",
  "crossterm",
  "dialoguer",
  "dirs",
@@ -2136,7 +2135,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "toml",
- "url",
 ]
 
 [[package]]

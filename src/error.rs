@@ -297,13 +297,6 @@ impl GeolocationError {
 
 #[derive(ThisError, Debug)]
 pub enum OnboardError {
-    #[error("failed to create config directory: {path}")]
-    CreateDirError {
-        path: String,
-        #[source]
-        source: io::Error,
-    },
-
     #[error("{0}")]
     Config(#[from] ConfigError),
 

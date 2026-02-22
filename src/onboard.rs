@@ -1,11 +1,11 @@
 use std::fmt;
 use std::time::Duration;
 
-use console::Style;
+use crossterm::style::Stylize;
 use dialoguer::{Confirm, FuzzySelect, Input, Select};
 use serde::Deserialize;
 
-use crate::config::{Config, Location};
+use crate::config::{Config, Location, LocationDisplay};
 use crate::error::OnboardError;
 use crate::weather::types::{PrecipitationUnit, TemperatureUnit, WeatherUnits, WindSpeedUnit};
 
@@ -61,68 +61,60 @@ impl fmt::Display for GeocodingResult {
 // ── Styling helpers ──────────────────────────────────────────────────
 
 fn print_banner() {
-    let cyan = Style::new().cyan().bold();
-    let dim = Style::new().dim();
-
     println!();
     println!(
         "{}",
-        cyan.apply_to("┌───────────────────────────────────────┐")
+        "┌───────────────────────────────────────┐".cyan().bold()
     );
     println!(
         "{}",
-        cyan.apply_to("│      Welcome to weathr setup!         │")
+        "│      Welcome to weathr setup!         │".cyan().bold()
     );
     println!(
         "{}",
-        cyan.apply_to("│  Let's configure your weather app.    │")
+        "│  Let's configure your weather app.    │".cyan().bold()
     );
     println!(
         "{}",
-        cyan.apply_to("└───────────────────────────────────────┘")
+        "└───────────────────────────────────────┘".cyan().bold()
     );
     println!();
     println!(
         "{}",
-        dim.apply_to("  Tip: existing values are shown as defaults. Press Enter to keep them.")
+        "  Tip: existing values are shown as defaults. Press Enter to keep them.".dim()
     );
     println!();
 }
 
 fn print_section(title: &str) {
-    let accent = Style::new().cyan().bold();
     let line = "─".repeat(40 - title.len().min(38));
     println!();
-    println!("{}", accent.apply_to(format!("── {title} {line}")));
+    println!("{}", format!("── {title} {line}").cyan().bold());
     println!();
 }
 
 fn print_success(config_path: &std::path::Path) {
-    let green = Style::new().green().bold();
-    let bold = Style::new().bold();
-
     println!();
     println!(
         "{}",
-        green.apply_to("── All set! ────────────────────────────")
+        "── All set! ────────────────────────────".green().bold()
     );
     println!();
-    println!("  Config saved to {}", bold.apply_to(config_path.display()));
+    println!(
+        "  Config saved to {}",
+        config_path.display().to_string().bold()
+    );
     println!();
-    println!("  Run {} to start!", green.apply_to("weathr"));
+    println!("  Run {} to start!", "weathr".green().bold());
     println!();
 }
 
 fn print_error(msg: &str) {
-    let red = Style::new().red().bold();
-    println!("  {} {msg}", red.apply_to("Error:"));
+    println!("  {} {msg}", "Error:".red().bold());
 }
 
 fn current_hint(value: impl fmt::Display) -> String {
-    Style::new()
-        .dim()
-        .apply_to(format!("[current: {value}]"))
-        .to_string()
+    format!("[current: {value}]").dim().to_string()
 }
 
 // ── Location method ──────────────────────────────────────────────────
@@ -152,14 +144,11 @@ impl fmt::Display for LocationMethod {
 
 // ── Geocoding API ────────────────────────────────────────────────────
 
-async fn search_cities(query: &str) -> Result<Vec<GeocodingResult>, OnboardError> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .connect_timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| OnboardError::GeocodingError(crate::error::NetworkError::ClientCreation(e)))?;
-
-    let url = url::Url::parse_with_params(
+async fn search_cities(
+    client: &reqwest::Client,
+    query: &str,
+) -> Result<Vec<GeocodingResult>, OnboardError> {
+    let url = reqwest::Url::parse_with_params(
         GEOCODING_API_URL,
         &[("name", query), ("count", "10"), ("language", "en")],
     )
@@ -252,9 +241,8 @@ enum CitySelection {
 }
 
 fn prompt_select_city(results: &[GeocodingResult]) -> Result<CitySelection, OnboardError> {
-    let dim = Style::new().dim().italic();
     let mut items: Vec<String> = results.iter().map(|r| r.to_string()).collect();
-    items.push(format!("{}", dim.apply_to("-- Search again --")));
+    items.push("-- Search again --".dim().italic().to_string());
 
     let selection = FuzzySelect::new()
         .with_prompt("Select a city")
@@ -297,6 +285,47 @@ fn prompt_hide_location(current: bool) -> Result<bool, OnboardError> {
         .interact_opt()
         .map_err(|e| OnboardError::PromptError(e.to_string()))?
         .ok_or(OnboardError::Cancelled)
+}
+
+fn prompt_location_display(current: LocationDisplay) -> Result<LocationDisplay, OnboardError> {
+    let options = ["Coordinates only", "City name", "Both (city + coordinates)"];
+    let default = match current {
+        LocationDisplay::Coordinates => 0,
+        LocationDisplay::City => 1,
+        LocationDisplay::Mixed => 2,
+    };
+
+    let selection = Select::new()
+        .with_prompt(format!(
+            "How should the location be displayed in the HUD? {}",
+            current_hint(match current {
+                LocationDisplay::Coordinates => "coordinates",
+                LocationDisplay::City => "city",
+                LocationDisplay::Mixed => "mixed",
+            })
+        ))
+        .items(options)
+        .default(default)
+        .interact_opt()
+        .map_err(|e| OnboardError::PromptError(e.to_string()))?
+        .ok_or(OnboardError::Cancelled)?;
+
+    Ok(match selection {
+        0 => LocationDisplay::Coordinates,
+        1 => LocationDisplay::City,
+        _ => LocationDisplay::Mixed,
+    })
+}
+
+fn prompt_city_name_language(current: &str) -> Result<String, OnboardError> {
+    Input::new()
+        .with_prompt(format!(
+            "City name language code (\"auto\" = system locale) {}",
+            current_hint(current)
+        ))
+        .default(current.to_string())
+        .interact_text()
+        .map_err(|e| OnboardError::PromptError(e.to_string()))
 }
 
 fn prompt_temperature_unit(current: TemperatureUnit) -> Result<TemperatureUnit, OnboardError> {
@@ -419,30 +448,31 @@ pub async fn run() -> Result<(), OnboardError> {
 
     // Phase 1: Resolve paths and load existing config
     let config_path = Config::get_config_path()?;
-    let config_dir = Config::get_config_dir()?;
-
-    if !config_dir.exists() {
-        std::fs::create_dir_all(&config_dir).map_err(|e| OnboardError::CreateDirError {
-            path: config_dir.display().to_string(),
-            source: e,
-        })?;
-    }
 
     let mut config = if config_path.exists() {
-        let dim = Style::new().dim();
         println!(
             "  {}",
-            dim.apply_to(format!(
-                "Found existing config at {}",
-                config_path.display()
-            ))
+            format!("Found existing config at {}", config_path.display()).dim()
         );
-        Config::load_from_path(&config_path).unwrap_or_default()
+        match Config::load_from_path(&config_path) {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                eprintln!("  Warning: Failed to load config: {e}");
+                eprintln!("  Starting with default settings.");
+                Config::default()
+            }
+        }
     } else {
         Config::default()
     };
 
     // Phase 2: Interactive prompts
+
+    let http_client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .connect_timeout(Duration::from_secs(5))
+        .build()
+        .map_err(|e| OnboardError::GeocodingError(crate::error::NetworkError::ClientCreation(e)))?;
 
     // ── Location ─────────────────────────────────────────────
     print_section("Location");
@@ -458,13 +488,9 @@ pub async fn run() -> Result<(), OnboardError> {
         LocationMethod::CitySearch => loop {
             let city = prompt_city_name()?;
 
-            let searching = Style::new().dim();
-            println!(
-                "  {}",
-                searching.apply_to(format!("Searching for \"{city}\"..."))
-            );
+            println!("  {}", format!("Searching for \"{city}\"...").dim());
 
-            match search_cities(&city).await {
+            match search_cities(&http_client, &city).await {
                 Ok(results) => match prompt_select_city(&results)? {
                     CitySelection::Selected(idx) => {
                         let selected = &results[idx];
@@ -474,13 +500,14 @@ pub async fn run() -> Result<(), OnboardError> {
                             longitude: selected.longitude,
                             auto: false,
                             hide: config.location.hide,
-                            ..Default::default()
+                            city: Some(selected.name.clone()),
+                            display: LocationDisplay::City,
+                            city_name_language: config.location.city_name_language.clone(),
                         };
 
-                        let green = Style::new().green();
                         println!(
                             "  {} {:.4}, {:.4}",
-                            green.apply_to("Selected:"),
+                            "Selected:".green(),
                             selected.latitude,
                             selected.longitude,
                         );
@@ -508,6 +535,9 @@ pub async fn run() -> Result<(), OnboardError> {
         }
     }
 
+    config.location.display = prompt_location_display(config.location.display)?;
+    config.location.city_name_language =
+        prompt_city_name_language(&config.location.city_name_language)?;
     config.location.hide = prompt_hide_location(config.location.hide)?;
 
     // ── Units ────────────────────────────────────────────────

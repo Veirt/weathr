@@ -148,13 +148,6 @@ fn test_onboard_error_display() {
 
     let error = OnboardError::PromptError("stdin closed".to_string());
     assert!(error.to_string().contains("stdin closed"));
-
-    let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
-    let error = OnboardError::CreateDirError {
-        path: "/root/weathr".to_string(),
-        source: io_err,
-    };
-    assert!(error.to_string().contains("/root/weathr"));
 }
 
 #[test]

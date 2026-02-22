@@ -182,6 +182,12 @@ impl Config {
     }
 
     pub fn save(&self, path: &Path) -> Result<(), ConfigError> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| ConfigError::WriteError {
+                path: parent.display().to_string(),
+                source: e,
+            })?;
+        }
         let content = toml::to_string_pretty(self).map_err(ConfigError::SerializeError)?;
         fs::write(path, content).map_err(|e| ConfigError::WriteError {
             path: path.display().to_string(),
