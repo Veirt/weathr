@@ -1,10 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::env;
 use toml::Table;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use toml::Table;
 
 use crate::error::ConfigError;
 use crate::weather::types::WeatherUnits;
@@ -35,7 +34,7 @@ pub struct Config {
     pub provider: HashMap<Provider, Table>,
 }
 
-#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum Provider {
     #[default]
     OpenMeteo,

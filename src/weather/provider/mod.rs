@@ -3,9 +3,9 @@ use crate::weather::types::{WeatherLocation, WeatherUnits};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+pub mod aad;
 pub mod met_office;
 pub mod open_meteo;
-pub mod aad;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeatherProviderResponse {
@@ -47,12 +47,14 @@ pub trait SupplementaryWeatherProvider {
         wanted: SupplementaryProviderRequest,
     ) -> Result<SupplementaryProviderResponse, WeatherError>;
 
+    #[allow(unused)]
     fn get_attribution(&self) -> &'static str;
 
+    #[allow(unused)] // I want to have a way for sup-providers to add their own capabilites to a list for mix&matching if a sup-provider is unavailable
     fn capabilites(&self) -> Vec<SupplementaryProviderRequest>;
 }
 
-/// Helper macro
+/// Helper macro - TODO: Remove `#[allow(dead_code)]`
 macro_rules! provider_enums {
     (
         $(
@@ -61,12 +63,14 @@ macro_rules! provider_enums {
         ),* $(,)?
     ) => {
         pub enum SupplementaryProviderRequest {
+            #[allow(dead_code)]
             $(
                 $name,
             )*
         }
 
         pub enum SupplementaryProviderResponse {
+            #[allow(dead_code)]
             $(
                 $name $payload,
             )*
