@@ -1,9 +1,13 @@
 use serde::Deserialize;
+use std::env;
 use std::fs;
 use std::path::PathBuf;
 
 use crate::error::ConfigError;
 use crate::weather::types::WeatherUnits;
+
+pub const ENV_LATITUDE: &str = "WEATHR_LATITUDE";
+pub const ENV_LONGITUDE: &str = "WEATHR_LONGITUDE";
 
 #[derive(Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -85,12 +89,43 @@ impl Config {
                     "Tip: Set latitude and longitude in config.toml for more accurate weather."
                 );
             }
-            return Ok(default);
+            let mut config = default;
+            config.apply_env_overrides()?;
+            return Ok(config);
         }
 
-        let config = Self::load_from_path(&config_path)?;
+        let mut config = Self::load_from_path(&config_path)?;
+        config.apply_env_overrides()?;
         config.validate()?;
         Ok(config)
+    }
+
+    fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
+        if let Ok(val) = env::var(ENV_LATITUDE) {
+            let lat = val
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| ConfigError::InvalidEnvVar {
+                    name: ENV_LATITUDE,
+                    value: val.clone(),
+                })?;
+            self.location.latitude = lat;
+            self.location.auto = false;
+        }
+
+        if let Ok(val) = env::var(ENV_LONGITUDE) {
+            let lon = val
+                .trim()
+                .parse::<f64>()
+                .map_err(|_| ConfigError::InvalidEnvVar {
+                    name: ENV_LONGITUDE,
+                    value: val.clone(),
+                })?;
+            self.location.longitude = lon;
+            self.location.auto = false;
+        }
+
+        Ok(())
     }
 
     fn validate(&self) -> Result<(), ConfigError> {
@@ -535,5 +570,101 @@ city_name_language = "ru"
 "#;
         let config: Config = toml::from_str(toml_content).unwrap();
         assert_eq!(config.location.city_name_language, "ru");
+    }
+
+    #[test]
+    fn test_env_var_latitude_override() {
+        unsafe {
+            env::set_var("WEATHR_LATITUDE", "48.8566");
+            env::remove_var("WEATHR_LONGITUDE");
+        }
+        let mut config = Config::default();
+        config.apply_env_overrides().unwrap();
+        assert_eq!(config.location.latitude, 48.8566);
+        assert!(!config.location.auto);
+        unsafe { env::remove_var("WEATHR_LATITUDE") };
+    }
+
+    #[test]
+    fn test_env_var_longitude_override() {
+        unsafe {
+            env::remove_var("WEATHR_LATITUDE");
+            env::set_var("WEATHR_LONGITUDE", "2.3522");
+        }
+        let mut config = Config::default();
+        config.apply_env_overrides().unwrap();
+        assert_eq!(config.location.longitude, 2.3522);
+        assert!(!config.location.auto);
+        unsafe { env::remove_var("WEATHR_LONGITUDE") };
+    }
+
+    #[test]
+    fn test_env_var_both_override() {
+        unsafe {
+            env::set_var("WEATHR_LATITUDE", "35.6762");
+            env::set_var("WEATHR_LONGITUDE", "139.6503");
+        }
+        let mut config = Config::default();
+        config.apply_env_overrides().unwrap();
+        assert_eq!(config.location.latitude, 35.6762);
+        assert_eq!(config.location.longitude, 139.6503);
+        assert!(!config.location.auto);
+        unsafe {
+            env::remove_var("WEATHR_LATITUDE");
+            env::remove_var("WEATHR_LONGITUDE");
+        }
+    }
+
+    #[test]
+    fn test_env_var_invalid_latitude() {
+        unsafe {
+            env::set_var("WEATHR_LATITUDE", "not-a-number");
+            env::remove_var("WEATHR_LONGITUDE");
+        }
+        let mut config = Config::default();
+        let result = config.apply_env_overrides();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), "InvalidEnvVar");
+        unsafe { env::remove_var("WEATHR_LATITUDE") };
+    }
+
+    #[test]
+    fn test_env_var_invalid_longitude() {
+        unsafe {
+            env::remove_var("WEATHR_LATITUDE");
+            env::set_var("WEATHR_LONGITUDE", "abc");
+        }
+        let mut config = Config::default();
+        let result = config.apply_env_overrides();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), "InvalidEnvVar");
+        unsafe { env::remove_var("WEATHR_LONGITUDE") };
+    }
+
+    #[test]
+    fn test_env_var_overrides_config_file_values() {
+        let toml_content = r#"
+[location]
+latitude = 52.52
+longitude = 13.41
+auto = false
+"#;
+        unsafe {
+            env::set_var("WEATHR_LATITUDE", "-33.8688");
+            env::set_var("WEATHR_LONGITUDE", "151.2093");
+        }
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("weathr_test_env_override.toml");
+        fs::write(&path, toml_content).unwrap();
+        let mut config = Config::load_from_path(&path).unwrap();
+        config.apply_env_overrides().unwrap();
+        assert_eq!(config.location.latitude, -33.8688);
+        assert_eq!(config.location.longitude, 151.2093);
+        assert!(!config.location.auto);
+        fs::remove_file(path).ok();
+        unsafe {
+            env::remove_var("WEATHR_LATITUDE");
+            env::remove_var("WEATHR_LONGITUDE");
+        }
     }
 }

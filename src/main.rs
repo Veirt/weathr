@@ -192,9 +192,23 @@ async fn main() -> io::Result<()> {
         config.silent = true;
     }
 
+    let lat_from_env = std::env::var(config::ENV_LATITUDE).is_ok();
+    let lon_from_env = std::env::var(config::ENV_LONGITUDE).is_ok();
+    if lat_from_env || lon_from_env {
+        info(
+            config.silent,
+            &format!(
+                "Location overridden via environment: ({:.4}, {:.4})",
+                config.location.latitude, config.location.longitude
+            ),
+        );
+    }
+
     if !config.location.auto
         && config.location.latitude == config::default_latitude()
         && config.location.longitude == config::default_longitude()
+        && !lat_from_env
+        && !lon_from_env
     {
         eprintln!("Warning: No location set, defaulting to Berlin (52.52, 13.41).");
     }
