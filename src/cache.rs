@@ -1,5 +1,5 @@
-use crate::{config::Provider, geolocation::GeoLocation};
 use crate::weather::WeatherData;
+use crate::{config::Provider, geolocation::GeoLocation};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
@@ -114,7 +114,11 @@ pub fn save_geocode_cache(city_name: &str, latitude: f64, longitude: f64, langua
     });
 }
 
-pub async fn load_cached_weather(latitude: f64, longitude: f64, provider: Provider) -> Option<WeatherData> {
+pub async fn load_cached_weather(
+    latitude: f64,
+    longitude: f64,
+    provider: Provider,
+) -> Option<WeatherData> {
     let cache_path = get_cache_dir()?.join("weather.json");
     let contents = fs::read_to_string(&cache_path).await.ok()?;
     let cache: WeatherCache = serde_json::from_str(&contents).ok()?;
@@ -132,7 +136,12 @@ pub async fn load_cached_weather(latitude: f64, longitude: f64, provider: Provid
     }
 }
 
-pub fn save_weather_cache(weather: &WeatherData, latitude: f64, longitude: f64, provider: Provider) {
+pub fn save_weather_cache(
+    weather: &WeatherData,
+    latitude: f64,
+    longitude: f64,
+    provider: Provider,
+) {
     let weather = weather.clone();
     tokio::spawn(async move {
         if let Some(cache_dir) = get_cache_dir() {

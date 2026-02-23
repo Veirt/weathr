@@ -16,12 +16,12 @@ async fn test_weather_client_integration_cache_behavior() {
     let units = WeatherUnits::default();
 
     let weather1 = client
-        .get_current_weather(&location, &units)
+        .get_current_weather(&location, &units, weathr::config::Provider::OpenMeteo)
         .await
         .expect("First fetch should succeed");
 
     let weather2 = client
-        .get_current_weather(&location, &units)
+        .get_current_weather(&location, &units, weathr::config::Provider::OpenMeteo)
         .await
         .expect("Second fetch should succeed");
 
@@ -45,14 +45,14 @@ async fn test_weather_client_integration_cache_invalidation() {
     let units = WeatherUnits::default();
 
     let _weather1 = client
-        .get_current_weather(&location, &units)
+        .get_current_weather(&location, &units, weathr::config::Provider::OpenMeteo)
         .await
         .expect("First fetch should succeed");
 
     client.invalidate_cache().await;
 
     let weather2 = client
-        .get_current_weather(&location, &units)
+        .get_current_weather(&location, &units, weathr::config::Provider::OpenMeteo)
         .await
         .expect("Fetch after invalidation should succeed");
 
@@ -76,7 +76,7 @@ async fn test_weather_client_integration_realistic_weather_ranges() {
     let units = WeatherUnits::default();
 
     let weather = client
-        .get_current_weather(&location, &units)
+        .get_current_weather(&location, &units, weathr::config::Provider::OpenMeteo)
         .await
         .expect("Should fetch weather");
 
