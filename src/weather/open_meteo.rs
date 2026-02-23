@@ -39,8 +39,6 @@ struct CurrentWeather {
 
 impl OpenMeteoProvider {
     pub fn new() -> Self {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
