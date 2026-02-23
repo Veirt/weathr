@@ -33,7 +33,7 @@ impl WeatherClient {
         &self,
         location: &WeatherLocation,
         units: &WeatherUnits,
-        provider: Provider
+        provider: Provider,
     ) -> Result<WeatherData, WeatherError> {
         {
             let cache = self.cache.read().await;

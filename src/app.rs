@@ -166,7 +166,9 @@ impl App {
 
             tokio::spawn(async move {
                 loop {
-                    let result = weather_client.get_current_weather(&location, &units, wanted_provider).await;
+                    let result = weather_client
+                        .get_current_weather(&location, &units, wanted_provider)
+                        .await;
                     if tx.send(result).await.is_err() {
                         break;
                     }
