@@ -11,6 +11,9 @@ mod render;
 mod scene;
 mod weather;
 
+#[cfg(target_os = "windows")]
+mod screensaver;
+
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use cli::Cli;
@@ -38,7 +41,20 @@ async fn main() -> io::Result<()> {
         default_hook(info);
     }));
 
-    let cli = match Cli::try_parse() {
+    #[cfg(target_os = "windows")]
+    let cli = {
+        if screensaver::windows::is_screensaver() {
+            screensaver::windows::init_screensaver()?;
+            Cli::try_parse_from(screensaver::windows::normalize_args()) // This should only occur if ran by Windows itself
+        } else {
+            Cli::try_parse()
+        }
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let cli = Cli::try_parse();
+
+    let cli = match cli {
         Ok(cli) => cli,
         Err(err) => {
             let err = cli::extract_simulate_missing_value(err);
@@ -54,6 +70,13 @@ async fn main() -> io::Result<()> {
         let mut out = io::stdout();
         generate(shell, &mut cmd, "weathr", &mut out);
         return Ok(());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if cli.fullscreen {
+            screensaver::windows::make_full_screen()?;
+        }
     }
 
     let mut config = match Config::load() {
@@ -200,6 +223,11 @@ async fn main() -> io::Result<()> {
             Ok(())
         }
     };
+
+    #[cfg(target_os = "windows")]
+    if cli.fullscreen {
+        println!("Press alt+enter twice to return the terminal to normal.");
+    }
 
     renderer.cleanup()?;
 
