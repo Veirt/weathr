@@ -52,11 +52,6 @@ jobs:
             asset_name: weathr-freebsd-amd64
             use_cross: true
           - os: ubuntu-latest
-            target: x86_64-unknown-netbsd
-            artifact_name: weathr
-            asset_name: weathr-netbsd-amd64
-            use_cross: true
-          - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             artifact_name: weathr
             asset_name: weathr-linux-musl-amd64
