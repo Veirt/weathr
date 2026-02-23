@@ -142,7 +142,11 @@ impl WeatherProvider for MetOfficeProvider {
         "Data supplied by the Met Office"
     }
 
-    async fn get_current_weather(&self, location: &WeatherLocation, units: &WeatherUnits ) -> Result<WeatherProviderResponse, WeatherError> {
+    async fn get_current_weather(
+        &self,
+        location: &WeatherLocation,
+        units: &WeatherUnits,
+    ) -> Result<WeatherProviderResponse, WeatherError> {
         let data = if let Ok(mut previous_data_lock) = self.last_weather_results.try_lock() {
             match previous_data_lock.clone() {
                 Some(data) => data,
