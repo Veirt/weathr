@@ -4,7 +4,7 @@
     rec {
       packages.weathr = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
         pname = "weathr";
-        version = "1.3.0";
+        version = "1.4.0";
         src = ../.;
         cargoLock.lockFile = ../Cargo.lock;
 
