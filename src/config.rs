@@ -34,7 +34,7 @@ pub struct Config {
     pub provider: HashMap<Provider, Table>,
 }
 
-#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Copy)]
 pub enum Provider {
     #[default]
     OpenMeteo,

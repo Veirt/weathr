@@ -1,4 +1,5 @@
 use crate::cache;
+use crate::config::Provider;
 use crate::error::WeatherError;
 use crate::weather::normalizer::WeatherNormalizer;
 use crate::weather::provider::WeatherProvider;
@@ -32,6 +33,7 @@ impl WeatherClient {
         &self,
         location: &WeatherLocation,
         units: &WeatherUnits,
+        provider: Provider
     ) -> Result<WeatherData, WeatherError> {
         {
             let cache = self.cache.read().await;
@@ -43,7 +45,7 @@ impl WeatherClient {
         }
 
         if let Some(cached_data) =
-            cache::load_cached_weather(location.latitude, location.longitude).await
+            cache::load_cached_weather(location.latitude, location.longitude, provider).await
             && std::env::var("CACHE_DISABLED").is_err()
         // Should've done this sooner
         {
@@ -67,7 +69,7 @@ impl WeatherClient {
             });
         }
 
-        cache::save_weather_cache(&data, location.latitude, location.longitude);
+        cache::save_weather_cache(&data, location.latitude, location.longitude, provider);
 
         Ok(data)
     }

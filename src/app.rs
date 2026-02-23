@@ -139,18 +139,18 @@ impl App {
             animations.update_snow_intensity(snow_intensity);
             animations.update_wind(wind_speed as f32, wind_direction as f32);
         } else {
-            let provider = config
+            let wanted_provider = config
                 .provider
                 .keys()
                 .next()
                 .cloned()
                 .unwrap_or(Provider::default()); // Pick the first available provider, or default
 
-            let provider: Arc<dyn WeatherProvider> = match provider {
+            let provider: Arc<dyn WeatherProvider> = match wanted_provider {
                 Provider::OpenMeteo => Arc::new(OpenMeteoProvider::new()),
                 Provider::MetOffice => {
                     let provider_config = {
-                        if let Some(provider_config) = config.provider.get(&provider) {
+                        if let Some(provider_config) = config.provider.get(&wanted_provider) {
                             MetOfficeProviderConfig::deserialize(provider_config.clone()).unwrap()
                         } else {
                             MetOfficeProviderConfig::default()
@@ -166,7 +166,7 @@ impl App {
 
             tokio::spawn(async move {
                 loop {
-                    let result = weather_client.get_current_weather(&location, &units).await;
+                    let result = weather_client.get_current_weather(&location, &units, wanted_provider).await;
                     if tx.send(result).await.is_err() {
                         break;
                     }
