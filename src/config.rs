@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::env;
-use toml::Table;
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::path::PathBuf;
+use toml::Table;
 
 use crate::error::ConfigError;
 use crate::weather::types::WeatherUnits;
