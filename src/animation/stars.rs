@@ -41,27 +41,30 @@ impl StarSystem {
         }
     }
 
-    fn create_stars(terminal_width: u16, terminal_height: u16, inital_stars: &[Star]) -> Vec<Star> {
+    fn create_stars(
+        terminal_width: u16,
+        terminal_height: u16,
+        initial_stars: &[Star],
+    ) -> Vec<Star> {
         let mut rng = rand::rng();
-        let count = (terminal_width as usize * terminal_height as usize) / 80; // Density
+        let count = (terminal_width as usize * terminal_height as usize) / 80;
 
-        if count < inital_stars.len() {
-            return inital_stars.to_vec();
-        }
+        let mut stars: Vec<Star> = initial_stars
+            .iter()
+            .cloned()
+            .filter(|s| s.x < terminal_width && s.y < terminal_height / 2)
+            .take(count)
+            .collect();
 
-        let mut stars = Vec::with_capacity(count);
-
-        stars.extend(inital_stars.iter().cloned());
-
-        for _ in 0..count {
+        let needed = count.saturating_sub(stars.len());
+        for _ in 0..needed {
             let mut attempts = 0;
             let max_attempts = 50;
 
             loop {
                 let x = rng.random::<u16>() % terminal_width;
-                let y = rng.random::<u16>() % (terminal_height / 2); // Upper half
+                let y = rng.random::<u16>() % (terminal_height / 2);
 
-                // Check if this position is far enough from existing stars
                 let too_close = stars.iter().any(|star: &Star| {
                     let dx = (star.x as f32 - x as f32).abs();
                     let dy = (star.y as f32 - y as f32).abs();
