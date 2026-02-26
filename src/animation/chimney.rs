@@ -4,6 +4,12 @@ use rand::prelude::*;
 use std::io;
 
 const MAX_PARTICLES: usize = 200;
+const MIN_PARTICLE_MAX_AGE: u32 = 70;
+const PARTICLE_MAX_AGE_VARIANCE: u32 = 30;
+const PARTICLE_VERTICAL_SPEED: f32 = 0.1;
+const PARTICLE_DRIFT_SCALE: f32 = 0.08;
+const PARTICLE_SPAWN_JITTER_X: f32 = 1.6;
+const DEFAULT_SPAWN_RATE: u32 = 12;
 
 struct SmokeParticle {
     x: f32,
@@ -15,11 +21,11 @@ struct SmokeParticle {
 
 impl SmokeParticle {
     fn new(chimney_x: u16, chimney_y: u16, rng: &mut impl Rng) -> Self {
-        let drift = (rng.random::<f32>() - 0.5) * 0.15;
-        let max_age = 30 + (rng.random::<u32>() % 15);
+        let drift = (rng.random::<f32>() - 0.5) * PARTICLE_DRIFT_SCALE;
+        let max_age = MIN_PARTICLE_MAX_AGE + (rng.random::<u32>() % PARTICLE_MAX_AGE_VARIANCE);
 
         Self {
-            x: chimney_x as f32 + (rng.random::<f32>() - 0.5) * 2.0,
+            x: chimney_x as f32 + (rng.random::<f32>() - 0.5) * PARTICLE_SPAWN_JITTER_X,
             y: chimney_y as f32,
             age: 0,
             max_age,
@@ -29,7 +35,7 @@ impl SmokeParticle {
 
     fn update(&mut self) {
         self.age += 1;
-        self.y -= 0.2;
+        self.y -= PARTICLE_VERTICAL_SPEED;
         self.x += self.drift;
     }
 
@@ -60,7 +66,7 @@ impl ChimneySmoke {
         Self {
             particles: Vec::with_capacity(MAX_PARTICLES),
             spawn_counter: 0,
-            spawn_rate: 8,
+            spawn_rate: DEFAULT_SPAWN_RATE,
         }
     }
 
