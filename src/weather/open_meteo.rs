@@ -6,6 +6,7 @@ use crate::weather::types::{
 use crate::weather::units::{normalize_precipitation, normalize_temperature, normalize_wind_speed};
 use async_trait::async_trait;
 use serde::Deserialize;
+use serde::de::{self, Deserializer};
 use std::time::Duration;
 
 const OPEN_METEO_BASE_URL: &str = "https://api.open-meteo.com/v1/forecast";
@@ -26,8 +27,10 @@ struct CurrentWeather {
     temperature_2m: f64,
     relative_humidity_2m: f64,
     apparent_temperature: f64,
+    #[serde(deserialize_with = "deserialize_i32_from_number")]
     is_day: i32,
     precipitation: f64,
+    #[serde(deserialize_with = "deserialize_i32_from_number")]
     weather_code: i32,
     cloud_cover: f64,
     surface_pressure: f64,
@@ -35,6 +38,28 @@ struct CurrentWeather {
     wind_direction_10m: f64,
     #[serde(default)]
     visibility: Option<f64>,
+}
+
+fn deserialize_i32_from_number<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Number {
+        Integer(i32),
+        Float(f64),
+    }
+
+    match Number::deserialize(deserializer)? {
+        Number::Integer(value) => Ok(value),
+        Number::Float(value) => {
+            if !value.is_finite() {
+                return Err(de::Error::custom("expected a finite numeric value"));
+            }
+            Ok(value.round() as i32)
+        }
+    }
 }
 
 impl OpenMeteoProvider {
