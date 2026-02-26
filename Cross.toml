@@ -1,0 +1,13 @@
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu@sha256:3985c9ccdc5388e888858b17947701959c6a10b84bd078398305621335ceacdb"
+
+[target.x86_64-unknown-linux-gnu.zig]
+enable = true
+version = "2.17"
+
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu@sha256:2619e5d69735cf047b0b27466f2d8e8b2ce33f3ef8276d840ad9417f8b5c740e"
+
+[target.aarch64-unknown-linux-gnu.zig]
+enable = true
+version = "2.17"
