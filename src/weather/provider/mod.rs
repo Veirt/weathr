@@ -51,7 +51,7 @@ pub trait SupplementaryWeatherProvider {
     fn get_attribution(&self) -> &'static str;
 
     #[allow(unused)] // I want to have a way for sup-providers to add their own capabilites to a list for mix&matching if a sup-provider is unavailable
-    fn capabilites(&self) -> Vec<SupplementaryProviderRequest>;
+    fn capabilities(&self) -> Vec<SupplementaryProviderRequest>;
 }
 
 /// Helper macro - TODO: Remove `#[allow(dead_code)]`
