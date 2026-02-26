@@ -1,5 +1,5 @@
-use crate::geolocation::GeoLocation;
 use crate::weather::WeatherData;
+use crate::{config::Provider, geolocation::GeoLocation};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
@@ -18,6 +18,7 @@ struct WeatherCache {
     data: WeatherData,
     cached_at: u64,
     location_key: String,
+    provider: Provider,
 }
 
 fn get_cache_dir() -> Option<PathBuf> {
@@ -113,13 +114,17 @@ pub fn save_geocode_cache(city_name: &str, latitude: f64, longitude: f64, langua
     });
 }
 
-pub async fn load_cached_weather(latitude: f64, longitude: f64) -> Option<WeatherData> {
+pub async fn load_cached_weather(
+    latitude: f64,
+    longitude: f64,
+    provider: Provider,
+) -> Option<WeatherData> {
     let cache_path = get_cache_dir()?.join("weather.json");
     let contents = fs::read_to_string(&cache_path).await.ok()?;
     let cache: WeatherCache = serde_json::from_str(&contents).ok()?;
 
     let location_key = make_location_key(latitude, longitude);
-    if cache.location_key != location_key {
+    if cache.location_key != location_key || cache.provider != provider {
         return None;
     }
 
@@ -131,7 +136,12 @@ pub async fn load_cached_weather(latitude: f64, longitude: f64) -> Option<Weathe
     }
 }
 
-pub fn save_weather_cache(weather: &WeatherData, latitude: f64, longitude: f64) {
+pub fn save_weather_cache(
+    weather: &WeatherData,
+    latitude: f64,
+    longitude: f64,
+    provider: Provider,
+) {
     let weather = weather.clone();
     tokio::spawn(async move {
         if let Some(cache_dir) = get_cache_dir() {
@@ -141,6 +151,7 @@ pub fn save_weather_cache(weather: &WeatherData, latitude: f64, longitude: f64) 
                 data: weather,
                 cached_at: current_timestamp(),
                 location_key: make_location_key(latitude, longitude),
+                provider,
             };
 
             if let Ok(json) = serde_json::to_string(&cache) {
