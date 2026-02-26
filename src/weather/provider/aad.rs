@@ -54,7 +54,7 @@ impl AADProvider {
         }
     }
 
-    fn convert_string_to_moon_pahse(value: &str) -> f64 {
+    fn convert_string_to_moon_phase(value: &str) -> f64 {
         match value {
             // New Moon
             "Waxing Crescent" => 0.15,
@@ -99,13 +99,13 @@ impl SupplementaryWeatherProvider for AADProvider {
 
                 let current_phase = phases.first().unwrap();
 
-                let phase = AADProvider::convert_string_to_moon_pahse(&current_phase.phase);
+                let phase = AADProvider::convert_string_to_moon_phase(&current_phase.phase);
                 Ok(SupplementaryProviderResponse::PhasesOfMoon(Some(phase)))
             }
             SupplementaryProviderRequest::SunAndMoonForOneDay => {
                 let data = &data["properties"]["data"];
                 let current_moon_phase =
-                    Self::convert_string_to_moon_pahse(data["curphase"].as_str().unwrap());
+                    Self::convert_string_to_moon_phase(data["curphase"].as_str().unwrap());
                 let sun_data: Vec<SunData> =
                     serde_json::from_value(data["sundata"].clone()).unwrap();
 
@@ -129,7 +129,7 @@ impl SupplementaryWeatherProvider for AADProvider {
         ""
     }
 
-    fn capabilites(&self) -> Vec<SupplementaryProviderRequest> {
+    fn capabilities(&self) -> Vec<SupplementaryProviderRequest> {
         vec![SupplementaryProviderRequest::PhasesOfMoon]
     }
 }
