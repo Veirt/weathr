@@ -6,11 +6,12 @@ mod cache;
 mod config;
 mod error;
 mod geolocation;
+mod onboard;
 mod render;
 mod scene;
 mod weather;
 
-use clap::{CommandFactory, Parser};
+use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};
 use config::Config;
 use crossterm::{
@@ -46,6 +47,9 @@ const ABOUT: &str = concat!(
 #[derive(Parser)]
 #[command(version, long_version = LONG_VERSION, about = ABOUT, long_about = None)]
 struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
     #[arg(
         short,
         long,
@@ -92,6 +96,13 @@ struct Cli {
 
     #[arg(long, value_name = "SHELL", value_enum)]
     pub completions: Option<Shell>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the interactive setup wizard to configure weathr
+    #[command(alias = "init")]
+    Onboard,
 }
 
 #[tokio::main]
@@ -149,6 +160,21 @@ async fn main() -> io::Result<()> {
         let mut cmd = Cli::command();
         let mut out = io::stdout();
         generate(shell, &mut cmd, "weathr", &mut out);
+        return Ok(());
+    }
+
+    if let Some(Commands::Onboard) = cli.command {
+        if let Err(e) = onboard::run().await {
+            match e {
+                error::OnboardError::Cancelled => {
+                    println!("\nSetup cancelled.");
+                }
+                _ => {
+                    eprintln!("Onboarding error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
         return Ok(());
     }
 
