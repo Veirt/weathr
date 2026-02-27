@@ -135,6 +135,7 @@ impl WeatherProvider for OpenMeteoProvider {
             .get(&url)
             .send()
             .await
+            .and_then(|resp| resp.error_for_status())
             .map_err(|e| WeatherError::Network(NetworkError::from_reqwest(e, &url, 30)))?;
 
         let data: OpenMeteoResponse = response

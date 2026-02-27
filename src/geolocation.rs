@@ -66,9 +66,14 @@ async fn fetch_location() -> Result<GeoLocation, GeolocationError> {
         .build()
         .map_err(|e| GeolocationError::Unreachable(NetworkError::ClientCreation(e)))?;
 
-    let response = client.get(IPINFO_URL).send().await.map_err(|e| {
-        GeolocationError::Unreachable(NetworkError::from_reqwest(e, IPINFO_URL, 10))
-    })?;
+    let response = client
+        .get(IPINFO_URL)
+        .send()
+        .await
+        .and_then(|resp| resp.error_for_status())
+        .map_err(|e| {
+            GeolocationError::Unreachable(NetworkError::from_reqwest(e, IPINFO_URL, 10))
+        })?;
 
     let ip_info: IpInfoResponse = response.json().await.map_err(|e| {
         GeolocationError::Unreachable(NetworkError::from_reqwest(e, IPINFO_URL, 10))
