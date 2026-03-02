@@ -8,7 +8,11 @@ use serde_json::Value;
 use crate::{
     error::{NetworkError, WeatherError},
     weather::{
-        WeatherLocation, WeatherUnits, provider::supplementary::{SupplementaryProviderRequest, SupplementaryProviderResponse, SupplementaryWeatherProvider},
+        WeatherLocation, WeatherUnits,
+        provider::supplementary::{
+            SupplementaryProviderRequest, SupplementaryProviderResponse,
+            SupplementaryWeatherProvider,
+        },
     },
 };
 
@@ -173,8 +177,8 @@ impl SunData {
 
 #[cfg(test)]
 mod test {
-    use crate::weather::WeatherLocation;
     use super::*;
+    use crate::weather::WeatherLocation;
 
     #[test]
     fn tz_test() {

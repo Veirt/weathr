@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 
-use crate::{error::WeatherError, weather::{WeatherLocation, WeatherUnits}};
+use crate::{
+    error::WeatherError,
+    weather::{WeatherLocation, WeatherUnits},
+};
 
 pub mod aad;
 

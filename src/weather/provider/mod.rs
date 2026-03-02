@@ -3,9 +3,9 @@ use crate::weather::types::{WeatherLocation, WeatherUnits};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-pub mod supplementary;
 pub mod met_office;
 pub mod open_meteo;
+pub mod supplementary;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeatherProviderResponse {

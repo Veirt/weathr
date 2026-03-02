@@ -16,7 +16,7 @@ pub enum WeatherError {
     Geolocation(#[from] GeolocationError),
 
     #[error("Provider returned no data")]
-    NoData
+    NoData,
 }
 
 #[derive(ThisError, Debug)]

@@ -11,7 +11,11 @@ use crate::{
     weather::{
         WeatherLocation, WeatherUnits,
         provider::{
-            WeatherProvider, WeatherProviderResponse, supplementary::{SupplementaryProviderRequest, SupplementaryProviderResponse, SupplementaryWeatherProvider, aad::AADProvider},
+            WeatherProvider, WeatherProviderResponse,
+            supplementary::{
+                SupplementaryProviderRequest, SupplementaryProviderResponse,
+                SupplementaryWeatherProvider, aad::AADProvider,
+            },
         },
         units::{normalize_precipitation, normalize_temperature, normalize_wind_speed},
     },
