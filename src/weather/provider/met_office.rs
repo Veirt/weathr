@@ -11,9 +11,7 @@ use crate::{
     weather::{
         WeatherLocation, WeatherUnits,
         provider::{
-            SupplementaryProviderRequest, SupplementaryProviderResponse,
-            SupplementaryWeatherProvider, WeatherProvider, WeatherProviderResponse,
-            aad::AADProvider,
+            WeatherProvider, WeatherProviderResponse, supplementary::{SupplementaryProviderRequest, SupplementaryProviderResponse, SupplementaryWeatherProvider, aad::AADProvider},
         },
         units::{normalize_precipitation, normalize_temperature, normalize_wind_speed},
     },
@@ -168,7 +166,7 @@ impl WeatherProvider for MetOfficeProvider {
                 *previous_data_lock = None;
             }
 
-            return self.get_current_weather(location, units).await;
+            return Err(WeatherError::NoData);
 
             // this only occurs 24 hours after the first request since thats when the provided weather data runs out
         };
@@ -280,7 +278,7 @@ pub struct MetOfficeTimeSeries {
     /// Mean Sea Level Pressure
     pub mslp: usize,
     #[serde(rename = "precipitationRate")]
-    pub percipitation_rate: f64,
+    pub precipitation_rate: f64,
 
     #[serde(rename = "probOfPrecipitation")]
     pub _probability_of_precipitation: f64,
@@ -367,7 +365,7 @@ impl MetOfficeTimeSeries {
         units: &WeatherUnits,
         param: &MetOfficeParameters,
     ) -> f64 {
-        let value = self.percipitation_rate;
+        let value = self.precipitation_rate;
 
         if let Some(param) = Self::find_param(param, "Precipitation Rate")
             && param.type_ == "Parameter"
