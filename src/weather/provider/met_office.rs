@@ -57,7 +57,9 @@ impl MetOfficeProvider {
         }
 
         if config.api_key.is_empty() {
-            panic!("API key is empty for Met Office Provider");
+            return Err(WeatherError::Config(ConfigError::InvalidAPIKey(
+                "API key is empty for Met Office Provider".to_string(),
+            )));
         }
 
         let client = reqwest::ClientBuilder::new();
@@ -124,9 +126,12 @@ impl MetOfficeProvider {
                 .into_iter()
                 .find(|item| {
                     let time = item.time.replace("Z", ":00Z"); // The Met Office returns the time in a loose format
-                    let start: DateTime<Utc> = time.parse().unwrap();
-                    let end = start + chrono::Duration::hours(1);
-                    Utc::now() >= start && Utc::now() <= end
+                    if let Ok(start) = time.parse::<DateTime<Utc>>() {
+                        let end = start + chrono::Duration::hours(1);
+                        Utc::now() >= start && Utc::now() <= end
+                    } else {
+                        false
+                    }
                 });
 
             return item;
@@ -170,7 +175,7 @@ impl WeatherProvider for MetOfficeProvider {
                 *previous_data_lock = None;
             }
 
-            return Err(WeatherError::NoData);
+            return Err(WeatherError::Data(crate::error::DataError::NoData)); // This should never happen & if it does, there will be no data anyway
 
             // this only occurs 24 hours after the first request since thats when the provided weather data runs out
         };
@@ -182,21 +187,21 @@ impl WeatherProvider for MetOfficeProvider {
                 &data.parameters,
                 current_weather.screen_temperature,
                 "screenTemperature",
-            ),
+            )?,
             apparent_temperature: current_weather.normalize_temperature(
                 units,
                 &data.parameters,
                 current_weather.feels_like_temperature,
                 "feelsLikeTemperature",
-            ),
+            )?,
             humidity: current_weather.screen_relative_humidity,
-            precipitation: current_weather.normalize_precipitation_rate(units, &data.parameters),
+            precipitation: current_weather.normalize_precipitation_rate(units, &data.parameters)?,
             wind_speed: current_weather.normalize_wind_speeds(
                 units,
                 &data.parameters,
                 current_weather.wind_speed_10m,
                 "windSpeed10m",
-            ),
+            )?,
             wind_direction: current_weather.wind_direction_from_10m as f64,
             cloud_cover: current_weather.uv_index as f64, // Unsure if this is correct
             pressure: current_weather.mslp as f64,
@@ -326,17 +331,17 @@ impl MetOfficeTimeSeries {
         param: &MetOfficeParameters,
         value: f64,
         target_param: &str,
-    ) -> f64 {
+    ) -> Result<f64, WeatherError> {
         if let Some(param) = Self::find_param(param, target_param)
             && param.type_ == "Parameter"
         {
             if param.unit.label == "degrees Celsius" {
-                normalize_temperature(value, units.temperature)
+                Ok(normalize_temperature(value, units.temperature))
             } else {
-                panic!("Met Office returned bad data for temperature");
+                Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
             }
         } else {
-            normalize_temperature(value, units.temperature)
+            Ok(normalize_temperature(value, units.temperature))
         }
     }
 
@@ -348,17 +353,17 @@ impl MetOfficeTimeSeries {
         param: &MetOfficeParameters,
         value: f64,
         target_param: &str,
-    ) -> f64 {
+    ) -> Result<f64, WeatherError> {
         if let Some(param) = Self::find_param(param, target_param)
             && param.type_ == "Parameter"
         {
             if param.unit.label == "metres per second" {
-                normalize_wind_speed(value, units.wind_speed)
+                Ok(normalize_wind_speed(value, units.wind_speed))
             } else {
-                panic!("Met Office returned bad data for wind speed");
+                Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
             }
         } else {
-            normalize_wind_speed(value, units.wind_speed)
+            Ok(normalize_wind_speed(value, units.wind_speed))
         }
     }
 
@@ -368,19 +373,19 @@ impl MetOfficeTimeSeries {
         &self,
         units: &WeatherUnits,
         param: &MetOfficeParameters,
-    ) -> f64 {
+    ) -> Result<f64, WeatherError> {
         let value = self.precipitation_rate;
 
         if let Some(param) = Self::find_param(param, "Precipitation Rate")
             && param.type_ == "Parameter"
         {
             if param.unit.label == "millimetres per hour" {
-                normalize_precipitation(value, units.precipitation)
+                Ok(normalize_precipitation(value, units.precipitation))
             } else {
-                panic!("Met Office returned bad data for precipitation rate");
+                Err(WeatherError::Data(crate::error::DataError::NoData)) // This should never happen & if it does, there will be no data anyway
             }
         } else {
-            normalize_precipitation(value, units.precipitation)
+            Ok(normalize_precipitation(value, units.precipitation))
         }
     }
 

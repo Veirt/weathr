@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
-    error::{NetworkError, WeatherError},
+    error::{DataError, NetworkError, WeatherError},
     weather::{
         WeatherLocation, WeatherUnits,
         provider::supplementary::{
@@ -95,26 +95,46 @@ impl SupplementaryWeatherProvider for AADProvider {
                 // TODO: Consider using the Fracillum / 10
                 let phase_data = &data["phasedata"];
 
-                let phases: Vec<MoonPhase> = serde_json::from_value(phase_data.clone()).unwrap();
+                let phases: Vec<MoonPhase> = serde_json::from_value(phase_data.clone())
+                    .map_err(|e| WeatherError::Data(DataError::SerdeParseError(e)))?;
 
-                let current_phase = phases.first().unwrap();
-
-                let phase = AADProvider::convert_string_to_moon_phase(&current_phase.phase);
-                Ok(SupplementaryProviderResponse::PhasesOfMoon(Some(phase)))
+                if let Some(current_phase) = phases.first() {
+                    let phase = AADProvider::convert_string_to_moon_phase(&current_phase.phase);
+                    Ok(SupplementaryProviderResponse::PhasesOfMoon(Some(phase)))
+                } else {
+                    Err(WeatherError::Data(DataError::BadData(
+                        "No moon phases".to_string(),
+                    )))
+                }
             }
             SupplementaryProviderRequest::SunAndMoonForOneDay => {
                 let data = &data["properties"]["data"];
-                let current_moon_phase =
-                    Self::convert_string_to_moon_phase(data["curphase"].as_str().unwrap());
-                let sun_data: Vec<SunData> =
-                    serde_json::from_value(data["sundata"].clone()).unwrap();
+                let current_moon_phase = data["curphase"].as_str();
 
-                let sunrise = get_sun_phase(&sun_data, CelestialPhenomena::Rise)
-                    .unwrap()
-                    .to_chrono_time();
-                let sunset = get_sun_phase(&sun_data, CelestialPhenomena::Set)
-                    .unwrap()
-                    .to_chrono_time();
+                let Some(current_moon_phase) = current_moon_phase else {
+                    return Err(WeatherError::Data(DataError::BadData(
+                        "No moon phases".to_string(),
+                    )));
+                };
+
+                let current_moon_phase = Self::convert_string_to_moon_phase(current_moon_phase);
+                let sun_data: Vec<SunData> = serde_json::from_value(data["sundata"].clone())
+                    .map_err(|e| WeatherError::Data(DataError::SerdeParseError(e)))?;
+
+                let Some(sunrise) = get_sun_phase(&sun_data, CelestialPhenomena::Rise) else {
+                    return Err(WeatherError::Data(DataError::BadData(
+                        "No CelestialPhenomena::Rise".to_string(),
+                    )));
+                };
+                let sunrise = sunrise.to_chrono_time()?;
+
+                let Some(sunset) = get_sun_phase(&sun_data, CelestialPhenomena::Set) else {
+                    return Err(WeatherError::Data(DataError::BadData(
+                        "No CelestialPhenomena::Set".to_string(),
+                    )));
+                };
+                let sunset = sunset.to_chrono_time()?;
+
                 let current_time = now.time();
 
                 Ok(SupplementaryProviderResponse::SunAndMoonForOneDay {
@@ -130,7 +150,10 @@ impl SupplementaryWeatherProvider for AADProvider {
     }
 
     fn capabilities(&self) -> Vec<SupplementaryProviderRequest> {
-        vec![SupplementaryProviderRequest::PhasesOfMoon]
+        vec![
+            SupplementaryProviderRequest::PhasesOfMoon,
+            SupplementaryProviderRequest::SunAndMoonForOneDay,
+        ]
     }
 }
 
@@ -170,8 +193,9 @@ impl SunData {
         self.time.clone().replace("  ST", "") // Unsure what ST stands for, but its not needed
     }
 
-    fn to_chrono_time(&self) -> NaiveTime {
-        NaiveTime::parse_from_str(&self.get_time(), "%H:%M").unwrap()
+    fn to_chrono_time(&self) -> Result<NaiveTime, WeatherError> {
+        NaiveTime::parse_from_str(&self.get_time(), "%H:%M")
+            .map_err(|e| WeatherError::Data(DataError::ChronoParseError(e)))
     }
 }
 

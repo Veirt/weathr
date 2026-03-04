@@ -15,8 +15,23 @@ pub enum WeatherError {
     #[error("{0}")]
     Geolocation(#[from] GeolocationError),
 
+    #[error("{0}")]
+    Data(#[from] DataError),
+}
+
+#[derive(ThisError, Debug)]
+pub enum DataError {
     #[error("Provider returned no data")]
     NoData,
+
+    #[error("Failed to parse data: {0}")]
+    SerdeParseError(#[source] serde_json::Error),
+
+    #[error("Failed to parse data: {0}")]
+    ChronoParseError(#[source] chrono::ParseError),
+
+    #[error("Provider returned bad data: {0}")]
+    BadData(String),
 }
 
 #[derive(ThisError, Debug)]
