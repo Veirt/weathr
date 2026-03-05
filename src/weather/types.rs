@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -155,7 +156,7 @@ pub struct WeatherData {
     pub precipitation: f64,
     pub wind_speed: f64,
     pub wind_direction: f64,
-    pub is_day: bool,
+    pub sun: CelestialEvents,
     pub moon_phase: Option<f64>,
     pub timestamp: String,
     pub attribution: String,
@@ -208,7 +209,7 @@ pub struct WeatherConditions {
     pub is_thunderstorm: bool,
     pub is_cloudy: bool,
     pub is_foggy: bool,
-    pub is_day: bool,
+    pub sun: CelestialEvents,
 }
 
 impl Default for WeatherConditions {
@@ -219,7 +220,41 @@ impl Default for WeatherConditions {
             is_thunderstorm: false,
             is_cloudy: false,
             is_foggy: false,
-            is_day: true,
+            sun: CelestialEvents::from_bool(true),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CelestialEvents {
+    pub is_day: bool,
+    pub begin_twight: Option<NaiveTime>,
+    pub rise: Option<NaiveTime>,
+    pub upper_transit: Option<NaiveTime>,
+    pub set: Option<NaiveTime>,
+    pub end_twight: Option<NaiveTime>,
+}
+
+impl CelestialEvents {
+    pub fn only_day(is_day: i32) -> Self {
+        Self {
+            is_day: is_day == 1,
+            begin_twight: None,
+            rise: None,
+            upper_transit: None,
+            set: None,
+            end_twight: None,
+        }
+    }
+
+    pub fn from_bool(is_day: bool) -> Self {
+        Self {
+            is_day,
+            begin_twight: None,
+            rise: None,
+            upper_transit: None,
+            set: None,
+            end_twight: None,
         }
     }
 }

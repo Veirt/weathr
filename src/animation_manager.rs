@@ -90,7 +90,7 @@ impl AnimationManager {
         let ground_height = WorldScene::GROUND_HEIGHT;
         let horizon_y = term_height.saturating_sub(ground_height);
 
-        if !conditions.is_day {
+        if !conditions.sun.is_day {
             self.star_system.update(term_width, term_height, &mut rng);
             self.star_system.render(renderer)?;
             self.moon_system.update(term_width, term_height);
@@ -106,7 +106,7 @@ impl AnimationManager {
         if !conditions.is_raining
             && !conditions.is_thunderstorm
             && !conditions.is_snowing
-            && conditions.is_day
+            && conditions.sun.is_day
         {
             self.bird_system.update(term_width, term_height, &mut rng);
             self.bird_system.render(renderer)?;

@@ -17,6 +17,7 @@ use crate::{
                 SupplementaryWeatherProvider, aad::AADProvider,
             },
         },
+        types::CelestialEvents,
         units::{normalize_precipitation, normalize_temperature, normalize_wind_speed},
     },
 };
@@ -200,7 +201,7 @@ impl WeatherProvider for MetOfficeProvider {
                 "windSpeed10m",
             )?,
             wind_direction: current_weather.wind_direction_from_10m as f64,
-            is_day: 0, // Defaults - Theses will be gathered by the supplementary provider
+            sun: CelestialEvents::from_bool(true), // Defaults - Theses will be gathered by the supplementary provider
             moon_phase: Some(0.5),
             timestamp: current_weather.time,
             attribution: self.get_attribution().to_string(),
@@ -216,10 +217,10 @@ impl WeatherProvider for MetOfficeProvider {
                 SupplementaryProviderRequest::SunAndMoonForOneDay,
             )
             .await?;
-        if let SupplementaryProviderResponse::SunAndMoonForOneDay { is_day, moon_phase } =
+        if let SupplementaryProviderResponse::SunAndMoonForOneDay { sun, moon_phase } =
             celestial_data
         {
-            current_weather.is_day = if is_day { 1 } else { 0 };
+            current_weather.sun = sun;
             current_weather.moon_phase = moon_phase;
         }
 
