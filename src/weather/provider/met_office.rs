@@ -56,6 +56,10 @@ impl MetOfficeProvider {
             config.data_source = MetOfficeProviderConfig::default().data_source;
         }
 
+        if let Ok(api_key) = std::env::var("MET_OFFICE_API_KEY") {
+            config.api_key = api_key;
+        }
+
         if config.api_key.is_empty() {
             return Err(WeatherError::Config(ConfigError::InvalidAPIKey(
                 "API key is empty for Met Office Provider".to_string(),
