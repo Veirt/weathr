@@ -3,6 +3,10 @@ use crate::weather::types::{WeatherLocation, WeatherUnits};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+pub mod met_office;
+pub mod open_meteo;
+pub mod supplementary;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeatherProviderResponse {
     pub weather_code: i32,
@@ -18,6 +22,7 @@ pub struct WeatherProviderResponse {
     pub is_day: i32,
     pub moon_phase: Option<f64>,
     pub timestamp: String,
+    pub attribution: String,
 }
 
 #[async_trait]
@@ -27,4 +32,6 @@ pub trait WeatherProvider: Send + Sync {
         location: &WeatherLocation,
         units: &WeatherUnits,
     ) -> Result<WeatherProviderResponse, WeatherError>;
+
+    fn get_attribution(&self) -> &'static str;
 }

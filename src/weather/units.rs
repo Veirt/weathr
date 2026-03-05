@@ -47,6 +47,7 @@ pub fn format_temperature(celsius: f64, unit: TemperatureUnit) -> (f64, &'static
     }
 }
 
+/// The input value must be in Ms
 pub fn format_wind_speed(ms: f64, unit: WindSpeedUnit) -> (f64, &'static str) {
     match unit {
         WindSpeedUnit::Ms => (ms, "m/s"),
@@ -56,6 +57,7 @@ pub fn format_wind_speed(ms: f64, unit: WindSpeedUnit) -> (f64, &'static str) {
     }
 }
 
+/// The input value must be in Mm
 pub fn format_precipitation(mm: f64, unit: PrecipitationUnit) -> (f64, &'static str) {
     match unit {
         PrecipitationUnit::Mm => (mm, "mm"),
@@ -63,6 +65,7 @@ pub fn format_precipitation(mm: f64, unit: PrecipitationUnit) -> (f64, &'static 
     }
 }
 
+/// The input value must be in Celsius
 pub fn normalize_temperature(value: f64, unit: TemperatureUnit) -> f64 {
     match unit {
         TemperatureUnit::Celsius => value,
@@ -70,6 +73,7 @@ pub fn normalize_temperature(value: f64, unit: TemperatureUnit) -> f64 {
     }
 }
 
+/// The input value must be in Ms
 pub fn normalize_wind_speed(value: f64, unit: WindSpeedUnit) -> f64 {
     match unit {
         WindSpeedUnit::Ms => value,
@@ -79,6 +83,7 @@ pub fn normalize_wind_speed(value: f64, unit: WindSpeedUnit) -> f64 {
     }
 }
 
+/// The input value must be in Mm
 pub fn normalize_precipitation(value: f64, unit: PrecipitationUnit) -> f64 {
     match unit {
         PrecipitationUnit::Mm => value,

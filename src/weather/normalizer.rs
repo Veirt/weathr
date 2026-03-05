@@ -21,6 +21,7 @@ impl WeatherNormalizer {
             is_day: response.is_day == 1,
             moon_phase: response.moon_phase,
             timestamp: response.timestamp,
+            attribution: response.attribution,
         }
     }
 
@@ -110,6 +111,7 @@ mod tests {
             is_day: 1,
             moon_phase: Some(0.5),
             timestamp: "2024-01-01T12:00".to_string(),
+            attribution: "".to_string(),
         };
 
         let data = WeatherNormalizer::normalize(response);
