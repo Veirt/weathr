@@ -418,7 +418,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore = "Requires API which fails CI"]
     async fn test_response_parse() {
         let api_key = env::var("MET_OFFICE_API_KEY").unwrap();
 
@@ -447,7 +446,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires API which fails CI"]
     async fn test_met_office_provider() {
         let api_key = env::var("MET_OFFICE_API_KEY").unwrap();
         let provider_cfg = MetOfficeProviderConfig {
