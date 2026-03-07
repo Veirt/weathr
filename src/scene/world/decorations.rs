@@ -81,7 +81,9 @@ impl Decorations {
     ) -> io::Result<()> {
         let color = if is_day { Color::Blue } else { Color::DarkBlue };
         let tree_x = layout.house_x.saturating_sub(20);
-        let mailbox_x = tree_x.saturating_sub(10);
+        let Some(mailbox_x) = tree_x.checked_sub(10) else {
+            return Ok(());
+        };
         if mailbox_x >= layout.width {
             return Ok(());
         }
