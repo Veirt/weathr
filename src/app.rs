@@ -255,6 +255,7 @@ impl App {
             self.animations.render_chimney_smoke(
                 renderer,
                 &self.state.weather_conditions,
+                &self.state,
                 term_width,
                 term_height,
                 &mut rng,
@@ -263,6 +264,7 @@ impl App {
             self.animations.render_foreground(
                 renderer,
                 &self.state.weather_conditions,
+                &self.state,
                 term_width,
                 term_height,
                 &mut rng,
@@ -300,6 +302,8 @@ impl App {
                 match event::read()? {
                     Event::Resize(width, height) => {
                         renderer.manual_resize(width, height)?;
+                        let (new_width, new_height) = renderer.get_size();
+                        self.animations.on_resize(new_width, new_height);
                     }
                     Event::Key(key_event) => match key_event.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => break,
@@ -316,9 +320,6 @@ impl App {
 
             let (term_width, term_height) = renderer.get_size();
             self.scene.update_size(term_width, term_height);
-
-            self.animations
-                .update_sunny_animation(&self.state.weather_conditions);
         }
 
         Ok(())

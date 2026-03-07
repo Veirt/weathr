@@ -1,6 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 
 struct Firefly {
@@ -14,7 +16,7 @@ struct Firefly {
 }
 
 impl Firefly {
-    fn new(terminal_width: u16, horizon_y: u16, rng: &mut impl Rng) -> Self {
+    fn new(terminal_width: u16, horizon_y: u16, rng: &mut (impl Rng + ?Sized)) -> Self {
         let x = rng.random::<f32>() * terminal_width as f32;
         let min_y = (horizon_y.saturating_sub(8)) as f32;
         let max_y = (horizon_y.saturating_sub(1)) as f32;
@@ -37,7 +39,7 @@ impl Firefly {
         }
     }
 
-    fn update(&mut self, terminal_width: u16, horizon_y: u16, rng: &mut impl Rng) {
+    fn update(&mut self, terminal_width: u16, horizon_y: u16, rng: &mut (impl Rng + ?Sized)) {
         self.x += self.vx;
         self.y += self.vy;
 
@@ -131,7 +133,7 @@ impl FireflySystem {
         terminal_width: u16,
         terminal_height: u16,
         horizon_y: u16,
-        rng: &mut impl Rng,
+        rng: &mut (impl Rng + ?Sized),
     ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
@@ -168,5 +170,41 @@ impl FireflySystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for FireflySystem {
+    fn id(&self) -> &'static str {
+        "fireflies"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Background
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        ctx.state.should_show_fireflies()
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+
+        let target_count = std::cmp::max(3, size.width / 15) as usize;
+        if self.fireflies.len() > target_count {
+            self.fireflies.truncate(target_count);
+        }
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, ctx.horizon_y, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        FireflySystem::render(self, renderer)
     }
 }

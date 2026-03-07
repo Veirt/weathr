@@ -1,7 +1,9 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crate::weather::types::FogIntensity;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::collections::VecDeque;
 use std::io;
 
@@ -16,7 +18,7 @@ struct FogWisp {
 }
 
 impl FogWisp {
-    fn new(terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) -> Self {
+    fn new(terminal_width: u16, terminal_height: u16, rng: &mut (impl Rng + ?Sized)) -> Self {
         let ground_level = terminal_height.saturating_sub(7);
         let fog_zone_top = ground_level.saturating_sub(15);
 
@@ -68,6 +70,43 @@ pub struct FogSystem {
     spawn_timer: u32,
 }
 
+impl AnimationSystem for FogSystem {
+    fn id(&self) -> &'static str {
+        "fog"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Foreground
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        ctx.conditions.is_foggy
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        self.wisps
+            .retain(|w| w.is_alive(size.width) && w.y >= 0.0 && w.y < size.height as f32);
+    }
+
+    fn on_fog_intensity(&mut self, intensity: FogIntensity) {
+        self.set_intensity(intensity);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        FogSystem::render(self, renderer)
+    }
+}
+
 impl FogSystem {
     pub fn new(terminal_width: u16, terminal_height: u16, intensity: FogIntensity) -> Self {
         let wisps_capacity = match intensity {
@@ -89,7 +128,12 @@ impl FogSystem {
         self.intensity = intensity;
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 

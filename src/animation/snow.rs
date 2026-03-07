@@ -1,7 +1,11 @@
+use crate::animation::{
+    AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize, Wind,
+};
 use crate::render::TerminalRenderer;
 use crate::weather::types::SnowIntensity;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 
 struct Snowflake {
@@ -66,10 +70,10 @@ impl SnowSystem {
         self.wind_x = speed_factor * x_component;
     }
 
-    fn spawn_flake(&mut self, rng: &mut impl Rng) {
+    fn spawn_flake(&mut self, rng: &mut (impl Rng + ?Sized)) {
         // Spawn across a wider area to account for wind blowing them in
-        let x = (rng.random::<u32>() % (self.terminal_width as u32 * 3)) as f32
-            - (self.terminal_width as f32);
+        let span = (self.terminal_width as u32).saturating_mul(3).max(1);
+        let x = (rng.random::<u32>() % span) as f32 - (self.terminal_width as f32);
 
         let z_index = if rng.random::<bool>() { 1 } else { 0 };
 
@@ -96,7 +100,12 @@ impl SnowSystem {
         });
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -117,6 +126,8 @@ impl SnowSystem {
             }
         }
 
+        let ground_y = terminal_height.saturating_sub(1);
+
         self.flakes.retain_mut(|flake| {
             flake.y += flake.speed_y;
 
@@ -125,7 +136,7 @@ impl SnowSystem {
             flake.x += flake.speed_x + sway;
 
             // Hit ground or out of bounds
-            if flake.y >= (terminal_height - 1) as f32 {
+            if flake.y >= ground_y as f32 {
                 return false;
             }
 
@@ -149,5 +160,50 @@ impl SnowSystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for SnowSystem {
+    fn id(&self) -> &'static str {
+        "snow"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Foreground
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        ctx.conditions.is_snowing
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        self.flakes.retain(|f| {
+            f.x >= -20.0
+                && f.x <= (size.width as f32 + 20.0)
+                && f.y >= 0.0
+                && f.y < size.height as f32
+        });
+    }
+
+    fn on_wind(&mut self, wind: Wind) {
+        self.set_wind(wind.speed_kmh, wind.direction_deg);
+    }
+
+    fn on_snow_intensity(&mut self, intensity: SnowIntensity) {
+        self.set_intensity(intensity);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        SnowSystem::render(self, renderer)
     }
 }

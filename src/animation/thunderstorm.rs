@@ -1,6 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::collections::VecDeque;
 use std::io;
 
@@ -44,15 +46,27 @@ impl ThunderstormSystem {
         }
     }
 
-    fn generate_bolt(&mut self, rng: &mut impl Rng) {
-        let start_x = (rng.random::<u16>() % (self.terminal_width - 10)) + 5;
+    fn generate_bolt(&mut self, rng: &mut (impl Rng + ?Sized)) -> bool {
+        if self.terminal_width < 12 || self.terminal_height < 8 {
+            return false;
+        }
+
+        let usable_width = self.terminal_width.saturating_sub(10);
+        if usable_width == 0 {
+            return false;
+        }
+
+        let start_x = (rng.random::<u16>() % usable_width) + 5;
         let mut segments = Vec::new();
         let mut x = start_x as i16;
         let mut y = 2; // Start below top bar
 
         segments.push((x as u16, y as u16, '+')); // Start point
 
-        while y < (self.terminal_height - 5) as i16 {
+        let y_end = self.terminal_height.saturating_sub(5) as i16;
+        let max_x = self.terminal_width.saturating_sub(3) as i16;
+
+        while y < y_end {
             let direction = (rng.random::<i8>() % 3) - 1; // -1, 0, 1
             x += direction as i16;
             y += 1;
@@ -61,8 +75,8 @@ impl ThunderstormSystem {
             if x < 2 {
                 x = 2;
             }
-            if x >= (self.terminal_width - 2) as i16 {
-                x = (self.terminal_width - 3) as i16;
+            if x > max_x {
+                x = max_x;
             }
 
             let char = match direction {
@@ -79,7 +93,7 @@ impl ThunderstormSystem {
                 let mut bx = x + branch_dir as i16;
                 let mut by = y + 1;
                 for _ in 0..3 {
-                    if by < (self.terminal_height - 2) as i16 {
+                    if by < self.terminal_height.saturating_sub(2) as i16 {
                         segments.push((
                             bx as u16,
                             by as u16,
@@ -101,19 +115,39 @@ impl ThunderstormSystem {
         while self.bolts.len() > MAX_BOLTS {
             self.bolts.pop_front();
         }
+
+        true
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
+
+        if self.terminal_width < 12 || self.terminal_height < 8 {
+            self.bolts.clear();
+            self.flash_active = false;
+            self.state = LightningState::Idle;
+            self.timer = 0;
+            self.next_strike_in = 60 + (rng.random::<u16>() % 120);
+            return;
+        }
 
         match self.state {
             LightningState::Idle => {
                 self.flash_active = false;
                 if self.timer >= self.next_strike_in {
-                    self.state = LightningState::Forming;
                     self.timer = 0;
-                    self.generate_bolt(rng);
+
+                    if self.generate_bolt(rng) {
+                        self.state = LightningState::Forming;
+                    } else {
+                        self.next_strike_in = 30 + (rng.random::<u16>() % 200);
+                    }
                 } else {
                     self.timer += 1;
                 }
@@ -151,10 +185,6 @@ impl ThunderstormSystem {
         }
     }
 
-    pub fn is_flashing(&self) -> bool {
-        self.flash_active
-    }
-
     pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
         let color = if self.flash_active {
             Color::White
@@ -168,5 +198,44 @@ impl ThunderstormSystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for ThunderstormSystem {
+    fn id(&self) -> &'static str {
+        "thunderstorm"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Foreground
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        ctx.conditions.is_thunderstorm
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+
+        if self.terminal_width < 12 || self.terminal_height < 8 {
+            self.bolts.clear();
+            self.flash_active = false;
+            self.state = LightningState::Idle;
+            self.timer = 0;
+        }
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+        commands.flash_screen |= self.flash_active;
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        ThunderstormSystem::render(self, renderer)
     }
 }

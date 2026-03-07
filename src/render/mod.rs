@@ -12,6 +12,16 @@ use std::io::{self, BufWriter, IsTerminal, Stdout, Write};
 const MIN_TERMINAL_WIDTH: u16 = 70;
 const MIN_TERMINAL_HEIGHT: u16 = 20;
 
+const MAX_TERMINAL_WIDTH: u16 = 1000;
+const MAX_TERMINAL_HEIGHT: u16 = 500;
+
+fn clamp_terminal_size(width: u16, height: u16) -> (u16, u16) {
+    (
+        width.min(MAX_TERMINAL_WIDTH),
+        height.min(MAX_TERMINAL_HEIGHT),
+    )
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Cell {
     character: char,
@@ -53,6 +63,8 @@ impl TerminalRenderer {
             });
         }
 
+        let (width, height) = clamp_terminal_size(width, height);
+
         let stdout = BufWriter::new(io::stdout());
         let buffer_size = (width as usize) * (height as usize);
         let capabilities = TerminalCapabilities::detect();
@@ -81,6 +93,7 @@ impl TerminalRenderer {
     }
 
     pub fn manual_resize(&mut self, width: u16, height: u16) -> io::Result<()> {
+        let (width, height) = clamp_terminal_size(width, height);
         if width != self.width || height != self.height {
             self.width = width;
             self.height = height;

@@ -1,5 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
+use rand::Rng;
+
 use std::io;
 
 pub struct MoonSystem {
@@ -124,5 +127,44 @@ impl MoonSystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for MoonSystem {
+    fn id(&self) -> &'static str {
+        "moon"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Background
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        !ctx.conditions.is_day
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.update(size.width, size.height);
+    }
+
+    fn on_moon_phase(&mut self, phase: f64) {
+        self.set_phase(phase);
+    }
+
+    fn update(
+        &mut self,
+        ctx: &FrameContext<'_>,
+        _rng: &mut dyn Rng,
+        _commands: &mut FrameCommands,
+    ) {
+        self.update(ctx.size.width, ctx.size.height);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        MoonSystem::render(self, renderer)
     }
 }

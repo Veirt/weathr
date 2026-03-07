@@ -1,6 +1,10 @@
+use crate::animation::{
+    AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize, Wind,
+};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 use std::sync::OnceLock;
 
@@ -82,7 +86,7 @@ impl CloudSystem {
         height: u16,
         color: Color,
         base_wind_x: f32,
-        rng: &mut impl Rng,
+        rng: &mut (impl Rng + ?Sized),
     ) -> Cloud {
         let shapes = CLOUD_SHAPES.get_or_init(Self::create_cloud_shapes);
 
@@ -139,7 +143,7 @@ impl CloudSystem {
         terminal_height: u16,
         is_clear: bool,
         cloud_color: Color,
-        rng: &mut impl Rng,
+        rng: &mut (impl Rng + ?Sized),
     ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
@@ -148,7 +152,17 @@ impl CloudSystem {
             cloud.x += cloud.speed + cloud.wind_x;
         }
 
-        self.clouds.retain(|c| c.x < terminal_width as f32);
+        let width_f = terminal_width as f32;
+        self.clouds.retain(|cloud| {
+            let cloud_width = cloud.shape.iter().map(|line| line.len()).max().unwrap_or(0) as f32;
+            let drift_x = cloud.speed + cloud.wind_x;
+
+            if drift_x >= 0.0 {
+                cloud.x < width_f
+            } else {
+                cloud.x + cloud_width > 0.0
+            }
+        });
 
         let max_clouds = if is_clear {
             (terminal_width / 30) as usize
@@ -158,17 +172,28 @@ impl CloudSystem {
 
         let spawn_chance = if is_clear { 0.002 } else { 0.005 };
 
-        let min_gap = (terminal_width as f32 / 8.0).max(15.0);
-        let too_close = self.clouds.iter().any(|c| c.x < min_gap);
+        if self.clouds.len() < max_clouds && rng.random::<f32>() < spawn_chance {
+            let mut cloud =
+                Self::create_random_cloud(0.0, terminal_height, cloud_color, self.base_wind_x, rng);
+            let cloud_width = cloud.shape.iter().map(|line| line.len()).max().unwrap_or(0) as f32;
 
-        if self.clouds.len() < max_clouds && !too_close && rng.random::<f32>() < spawn_chance {
-            self.clouds.push(Self::create_random_cloud(
-                0.0,
-                terminal_height,
-                cloud_color,
-                self.base_wind_x,
-                rng,
-            ));
+            let drift_x = cloud.speed + cloud.wind_x;
+            let spawn_from_left = drift_x >= 0.0;
+            let min_gap = (terminal_width as f32 / 8.0).max(15.0);
+            let too_close = if spawn_from_left {
+                self.clouds.iter().any(|c| c.x < min_gap)
+            } else {
+                self.clouds.iter().any(|c| c.x > (width_f - min_gap))
+            };
+
+            if !too_close {
+                cloud.x = if spawn_from_left {
+                    -cloud_width
+                } else {
+                    width_f
+                };
+                self.clouds.push(cloud);
+            }
         }
     }
 
@@ -196,5 +221,57 @@ impl CloudSystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for CloudSystem {
+    fn id(&self) -> &'static str {
+        "clouds"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Background
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        let is_clear = ctx
+            .state
+            .current_weather
+            .as_ref()
+            .is_some_and(|w| matches!(w.condition, crate::weather::WeatherCondition::Clear));
+
+        ctx.conditions.is_cloudy || is_clear
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+    }
+
+    fn on_wind(&mut self, wind: Wind) {
+        self.set_wind(wind.speed_kmh, wind.direction_deg);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        let (is_clear, cloud_color) = if let Some(weather) = &ctx.state.current_weather {
+            match weather.condition {
+                crate::weather::WeatherCondition::Clear => (true, Color::White),
+                crate::weather::WeatherCondition::PartlyCloudy => (false, Color::Grey),
+                _ => (false, Color::DarkGrey),
+            }
+        } else {
+            (false, Color::DarkGrey)
+        };
+
+        self.set_cloud_color(is_clear);
+        self.update(ctx.size.width, ctx.size.height, is_clear, cloud_color, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        CloudSystem::render(self, renderer)
     }
 }
