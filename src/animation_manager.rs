@@ -7,8 +7,7 @@ use crate::animation::{
 };
 use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
-use crate::scene::WorldScene;
-use crate::scene::house::House;
+use crate::scene::SceneLayout;
 use crate::weather::{FogIntensity, RainIntensity, SnowIntensity, WeatherConditions};
 use rand::Rng;
 use std::io;
@@ -106,31 +105,22 @@ impl AnimationManager {
         &self,
         conditions: &'a WeatherConditions,
         state: &'a AppState,
-        term_width: u16,
-        term_height: u16,
+        layout: &SceneLayout,
     ) -> FrameContext<'a> {
-        let ground_height = WorldScene::GROUND_HEIGHT;
-        let horizon_y = term_height.saturating_sub(ground_height);
-        let house_width = House::WIDTH;
-        let house_height = House::HEIGHT;
-        let house_x = (term_width / 2).saturating_sub(house_width / 2);
-        let house_y = horizon_y.saturating_sub(house_height);
-        let chimney_x = house_x + House::CHIMNEY_X_OFFSET;
-        let chimney_y = house_y;
+        let chimney = layout
+            .chimney_pos
+            .map(|pos| ChimneyPosition { x: pos.x, y: pos.y });
 
         FrameContext {
             size: TerminalSize {
-                width: term_width,
-                height: term_height,
+                width: layout.width,
+                height: layout.height,
             },
-            horizon_y,
+            horizon_y: layout.ground_y,
             conditions,
             state,
             show_leaves: self.show_leaves,
-            chimney: Some(ChimneyPosition {
-                x: chimney_x,
-                y: chimney_y,
-            }),
+            chimney,
         }
     }
 
@@ -154,7 +144,6 @@ impl AnimationManager {
             if !system.is_active(ctx) {
                 continue;
             }
-
             system.update(ctx, rng, &mut commands);
             system.render(renderer, ctx)?;
         }
@@ -171,11 +160,10 @@ impl AnimationManager {
         renderer: &mut TerminalRenderer,
         conditions: &WeatherConditions,
         state: &AppState,
-        term_width: u16,
-        term_height: u16,
+        layout: &SceneLayout,
         rng: &mut impl Rng,
     ) -> io::Result<()> {
-        let ctx = self.make_context(conditions, state, term_width, term_height);
+        let ctx = self.make_context(conditions, state, layout);
         self.render_layer(renderer, RenderLayer::Background, &ctx, rng)
     }
 
@@ -184,11 +172,10 @@ impl AnimationManager {
         renderer: &mut TerminalRenderer,
         conditions: &WeatherConditions,
         state: &AppState,
-        term_width: u16,
-        term_height: u16,
+        layout: &SceneLayout,
         rng: &mut impl Rng,
     ) -> io::Result<()> {
-        let ctx = self.make_context(conditions, state, term_width, term_height);
+        let ctx = self.make_context(conditions, state, layout);
         self.render_layer(renderer, RenderLayer::PostScene, &ctx, rng)
     }
 
@@ -197,11 +184,10 @@ impl AnimationManager {
         renderer: &mut TerminalRenderer,
         conditions: &WeatherConditions,
         state: &AppState,
-        term_width: u16,
-        term_height: u16,
+        layout: &SceneLayout,
         rng: &mut impl Rng,
     ) -> io::Result<()> {
-        let ctx = self.make_context(conditions, state, term_width, term_height);
+        let ctx = self.make_context(conditions, state, layout);
         self.render_layer(renderer, RenderLayer::Foreground, &ctx, rng)
     }
 }
