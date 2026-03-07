@@ -257,8 +257,6 @@ impl App {
 
             renderer.clear()?;
 
-            let (term_width, term_height) = renderer.get_size();
-
             let theme = self.themes.active();
             let scene_id = theme.scene_id;
             let palette = &theme.palette;
@@ -269,10 +267,12 @@ impl App {
             } else {
                 "world"
             };
+            let (term_width, term_height) = renderer.get_size();
             let scene = self
                 .scenes
                 .get_mut(resolved_scene_id)
                 .expect("world scene must always be registered");
+            scene.update_size(term_width, term_height);
 
             let layout = scene.layout();
             let ctx = SceneContext {
@@ -357,11 +357,6 @@ impl App {
                     },
                     _ => {}
                 }
-            }
-
-            let (term_width, term_height) = renderer.get_size();
-            if let Some(scene) = self.scenes.get_mut(self.themes.active().scene_id) {
-                scene.update_size(term_width, term_height);
             }
         }
 
