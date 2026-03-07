@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::{
     error::WeatherError,
-    weather::{WeatherLocation, WeatherUnits},
+    weather::{WeatherLocation, WeatherUnits, types::CelestialEvents},
 };
 
 pub mod aad;
@@ -60,7 +60,7 @@ macro_rules! provider_enums {
 provider_enums! {
     PhasesOfMoon(Option<f64>),
     SunAndMoonForOneDay {
-        is_day: bool, // Consider i32 if support for twilight is added
+        sun: CelestialEvents,
         moon_phase: Option<f64>
     }
 }

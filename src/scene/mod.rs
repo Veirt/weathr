@@ -57,12 +57,12 @@ impl WorldScene {
             self.width,
             Self::GROUND_HEIGHT,
             horizon_y,
-            conditions.is_day,
+            conditions.sun.is_day,
         )?;
 
         // Render House
         self.house
-            .render(renderer, house_x, house_y, conditions.is_day)?;
+            .render(renderer, house_x, house_y, conditions.sun.is_day)?;
 
         // Render Decorations
         self.decorations.render(
@@ -72,7 +72,7 @@ impl WorldScene {
                 house_x,
                 house_width,
                 width: self.width,
-                is_day: conditions.is_day,
+                is_day: conditions.sun.is_day,
             },
         )?;
 

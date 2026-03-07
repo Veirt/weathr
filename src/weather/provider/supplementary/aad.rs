@@ -13,6 +13,7 @@ use crate::{
             SupplementaryProviderRequest, SupplementaryProviderResponse,
             SupplementaryWeatherProvider,
         },
+        types::CelestialEvents,
     },
 };
 
@@ -121,24 +122,44 @@ impl SupplementaryWeatherProvider for AADProvider {
                 let sun_data: Vec<SunData> = serde_json::from_value(data["sundata"].clone())
                     .map_err(|e| WeatherError::Data(DataError::SerdeParseError(e)))?;
 
-                let Some(sunrise) = get_sun_phase(&sun_data, CelestialPhenomena::Rise) else {
+                let Some(start_twilight) = get_sun_phase(&sun_data, CelestialPhenomena::Rise)
+                else {
                     return Err(WeatherError::Data(DataError::BadData(
                         "No CelestialPhenomena::Rise".to_string(),
                     )));
                 };
-                let sunrise = sunrise.to_chrono_time()?;
+                let start_twilight = start_twilight.to_chrono_time()?;
 
-                let Some(sunset) = get_sun_phase(&sun_data, CelestialPhenomena::Set) else {
+                let Some(end_twilight) = get_sun_phase(&sun_data, CelestialPhenomena::Set) else {
                     return Err(WeatherError::Data(DataError::BadData(
                         "No CelestialPhenomena::Set".to_string(),
                     )));
                 };
-                let sunset = sunset.to_chrono_time()?;
+                let end_twilight = end_twilight.to_chrono_time()?;
+
+                let rise = get_sun_phase(&sun_data, CelestialPhenomena::Rise)
+                    .and_then(|x| x.to_chrono_time().ok());
+
+                let upper_transit = get_sun_phase(&sun_data, CelestialPhenomena::UpperTransit)
+                    .and_then(|x| x.to_chrono_time().ok());
+
+                let set = get_sun_phase(&sun_data, CelestialPhenomena::Set)
+                    .and_then(|x| x.to_chrono_time().ok());
 
                 let current_time = now.time();
+                let is_day = current_time > start_twilight && current_time < end_twilight;
+
+                let sun_times = CelestialEvents {
+                    is_day,
+                    begin_twight: Some(start_twilight),
+                    rise,
+                    upper_transit,
+                    set,
+                    end_twight: Some(end_twilight),
+                };
 
                 Ok(SupplementaryProviderResponse::SunAndMoonForOneDay {
-                    is_day: current_time > sunrise && current_time < sunset,
+                    sun: sun_times,
                     moon_phase: Some(current_moon_phase),
                 })
             }
