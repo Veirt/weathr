@@ -10,7 +10,12 @@ pub mod raindrops;
 pub mod snow;
 pub mod stars;
 pub mod sunny;
+pub mod system;
 pub mod thunderstorm;
+
+pub use system::{
+    AnimationSystem, ChimneyPosition, FrameCommands, FrameContext, RenderLayer, TerminalSize, Wind,
+};
 
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;

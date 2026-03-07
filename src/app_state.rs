@@ -217,6 +217,12 @@ impl LoadingState {
     }
 }
 
+impl Default for LoadingState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

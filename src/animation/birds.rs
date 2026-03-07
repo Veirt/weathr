@@ -1,6 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 
 struct Bird {
@@ -27,7 +29,12 @@ impl BirdSystem {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -43,7 +50,8 @@ impl BirdSystem {
 
         self.birds.retain(|b| b.x < terminal_width as f32);
         if self.birds.len() < 3 && rng.random::<f32>() < 0.01 {
-            let y = (rng.random::<u16>() % (terminal_height / 3)) as f32;
+            let spawn_band = (terminal_height / 3).max(1);
+            let y = (rng.random::<u16>() % spawn_band) as f32;
             let speed = 0.2 + (rng.random::<f32>() * 0.2);
             self.birds.push(Bird {
                 x: 0.0,
@@ -65,5 +73,41 @@ impl BirdSystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for BirdSystem {
+    fn id(&self) -> &'static str {
+        "birds"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Background
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        ctx.conditions.is_day
+            && !ctx.conditions.is_raining
+            && !ctx.conditions.is_thunderstorm
+            && !ctx.conditions.is_snowing
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        self.birds
+            .retain(|b| b.x < size.width as f32 && b.y < size.height as f32);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        BirdSystem::render(self, renderer)
     }
 }

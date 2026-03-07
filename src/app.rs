@@ -3,7 +3,11 @@ use crate::app_state::AppState;
 use crate::config::{Config, Provider};
 use crate::error::WeatherError;
 use crate::render::TerminalRenderer;
-use crate::scene::WorldScene;
+use crate::scene::overlay::OverlayRegistry;
+use crate::scene::world::WorldScene;
+use crate::scene::{SceneContext, SceneRegistry};
+use crate::theme::ThemeRegistry;
+
 use crate::weather::provider::WeatherProvider;
 use crate::weather::provider::met_office::{MetOfficeProvider, MetOfficeProviderConfig};
 use crate::weather::{
@@ -57,7 +61,9 @@ fn generate_offline_weather(rng: &mut impl rand::Rng) -> WeatherData {
 pub struct App {
     state: AppState,
     animations: AnimationManager,
-    scene: WorldScene,
+    scenes: SceneRegistry,
+    overlays: OverlayRegistry,
+    themes: ThemeRegistry,
     weather_receiver: mpsc::Receiver<Result<WeatherData, WeatherError>>,
     hide_hud: bool,
 }
@@ -85,7 +91,19 @@ impl App {
             config.units,
         );
         let mut animations = AnimationManager::new(term_width, term_height, show_leaves);
-        let scene = WorldScene::new(term_width, term_height);
+
+        let mut scenes = SceneRegistry::new();
+        scenes.register(Box::new(WorldScene::new(term_width, term_height)));
+
+        let overlays = OverlayRegistry::new();
+
+        let mut themes = ThemeRegistry::new();
+        if themes.set_active(&config.theme).is_err() {
+            eprintln!(
+                "Warning: theme '{}' is not registered, falling back to 'default'.",
+                config.theme
+            );
+        }
 
         let (tx, rx) = mpsc::channel(1);
 
@@ -120,7 +138,6 @@ impl App {
 
             let rain_intensity = weather.condition.rain_intensity();
             let snow_intensity = weather.condition.snow_intensity();
-
             let wind_speed = weather.wind_speed;
             let wind_direction = weather.wind_direction;
 
@@ -134,7 +151,7 @@ impl App {
                 .keys()
                 .next()
                 .cloned()
-                .unwrap_or(Provider::default()); // Pick the first available provider, or default
+                .unwrap_or(Provider::default());
 
             let provider: Arc<dyn WeatherProvider> = match wanted_provider {
                 Provider::OpenMeteo => Arc::new(OpenMeteoProvider::new()),
@@ -146,7 +163,6 @@ impl App {
                             MetOfficeProviderConfig::default()
                         }
                     };
-
                     Arc::new(MetOfficeProvider::new(provider_config).unwrap())
                 }
             };
@@ -170,7 +186,9 @@ impl App {
         Self {
             state,
             animations,
-            scene,
+            scenes,
+            overlays,
+            themes,
             weather_receiver: rx,
             hide_hud: config.hide_hud,
         }
@@ -179,6 +197,7 @@ impl App {
     pub async fn run(&mut self, renderer: &mut TerminalRenderer) -> io::Result<()> {
         let mut rng = rand::rng();
         let mut attribution = "Awaiting weather data".to_string();
+
         loop {
             match self.weather_receiver.try_recv() {
                 Ok(result) => match result {
@@ -238,33 +257,58 @@ impl App {
 
             renderer.clear()?;
 
+            let theme = self.themes.active();
+            let scene_id = theme.scene_id;
+            let palette = &theme.palette;
+            let overlay_id = theme.overlay_id;
+
+            let resolved_scene_id = if self.scenes.get(scene_id).is_some() {
+                scene_id
+            } else {
+                "world"
+            };
             let (term_width, term_height) = renderer.get_size();
+            let scene = self
+                .scenes
+                .get_mut(resolved_scene_id)
+                .expect("world scene must always be registered");
+            scene.update_size(term_width, term_height);
+
+            let layout = scene.layout();
+            let ctx = SceneContext {
+                conditions: &self.state.weather_conditions,
+                palette,
+            };
 
             self.animations.render_background(
                 renderer,
                 &self.state.weather_conditions,
                 &self.state,
-                term_width,
-                term_height,
+                &layout,
                 &mut rng,
             )?;
 
-            self.scene
-                .render(renderer, &self.state.weather_conditions)?;
+            scene.render(renderer, &ctx)?;
+
+            if let Some(ov_id) = overlay_id {
+                if let Some(overlay) = self.overlays.get(ov_id) {
+                    overlay.render(renderer, &ctx, &layout)?;
+                }
+            }
 
             self.animations.render_chimney_smoke(
                 renderer,
                 &self.state.weather_conditions,
-                term_width,
-                term_height,
+                &self.state,
+                &layout,
                 &mut rng,
             )?;
 
             self.animations.render_foreground(
                 renderer,
                 &self.state.weather_conditions,
-                term_width,
-                term_height,
+                &self.state,
+                &layout,
                 &mut rng,
             )?;
 
@@ -280,7 +324,6 @@ impl App {
                 )?;
             }
 
-            // Render attribution - Required by some providers this undoes commit: 55a3dbf84ec70de3614f3b8a044f15d488e9d149
             let attribution_x = if term_width > attribution.len() as u16 {
                 term_width - attribution.len() as u16 - 2
             } else {
@@ -300,6 +343,8 @@ impl App {
                 match event::read()? {
                     Event::Resize(width, height) => {
                         renderer.manual_resize(width, height)?;
+                        let (new_width, new_height) = renderer.get_size();
+                        self.animations.on_resize(new_width, new_height);
                     }
                     Event::Key(key_event) => match key_event.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => break,
@@ -313,12 +358,6 @@ impl App {
                     _ => {}
                 }
             }
-
-            let (term_width, term_height) = renderer.get_size();
-            self.scene.update_size(term_width, term_height);
-
-            self.animations
-                .update_sunny_animation(&self.state.weather_conditions);
         }
 
         Ok(())

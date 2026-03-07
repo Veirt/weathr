@@ -1,6 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 
 const MAX_PARTICLES: usize = 200;
@@ -20,7 +22,7 @@ struct SmokeParticle {
 }
 
 impl SmokeParticle {
-    fn new(chimney_x: u16, chimney_y: u16, rng: &mut impl Rng) -> Self {
+    fn new(chimney_x: u16, chimney_y: u16, rng: &mut (impl Rng + ?Sized)) -> Self {
         let drift = (rng.random::<f32>() - 0.5) * PARTICLE_DRIFT_SCALE;
         let max_age = MIN_PARTICLE_MAX_AGE + (rng.random::<u32>() % PARTICLE_MAX_AGE_VARIANCE);
 
@@ -70,7 +72,7 @@ impl ChimneySmoke {
         }
     }
 
-    pub fn update(&mut self, chimney_x: u16, chimney_y: u16, rng: &mut impl Rng) {
+    pub fn update(&mut self, chimney_x: u16, chimney_y: u16, rng: &mut (impl Rng + ?Sized)) {
         for particle in &mut self.particles {
             particle.update();
         }
@@ -108,5 +110,41 @@ impl ChimneySmoke {
 impl Default for ChimneySmoke {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl AnimationSystem for ChimneySmoke {
+    fn id(&self) -> &'static str {
+        "chimney_smoke"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::PostScene
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        !ctx.conditions.is_raining && !ctx.conditions.is_thunderstorm && ctx.chimney.is_some()
+    }
+
+    fn on_resize(&mut self, _size: TerminalSize) {}
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        let Some(chimney) = ctx.chimney else {
+            return;
+        };
+
+        self.update(chimney.x, chimney.y, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        if ctx.chimney.is_none() {
+            return Ok(());
+        }
+
+        ChimneySmoke::render(self, renderer)
     }
 }
