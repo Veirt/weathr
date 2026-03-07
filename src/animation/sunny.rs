@@ -11,43 +11,22 @@ use std::time::{Duration, Instant};
 
 const FRAME_DELAY: Duration = Duration::from_millis(500);
 
+const SUN_FRAMES: [&str; 2] = [
+    include_str!("assets/sun_0.txt"),
+    include_str!("assets/sun_1.txt"),
+];
+
 pub struct SunnyAnimation {
     frames: Vec<Vec<String>>,
 }
 
 impl SunnyAnimation {
     pub fn new() -> Self {
-        let frames = vec![Self::create_frame_1(), Self::create_frame_2()];
-
+        let frames = SUN_FRAMES
+            .iter()
+            .map(|src| src.lines().map(|l| l.to_string()).collect())
+            .collect();
         Self { frames }
-    }
-
-    fn create_frame_1() -> Vec<String> {
-        vec![
-            "      ;   :   ;".to_string(),
-            "   .   \\_,!,_/   ,".to_string(),
-            "    `.,'     `.,'".to_string(),
-            "     /         \\".to_string(),
-            "~ -- :         : -- ~".to_string(),
-            "     \\         /".to_string(),
-            "    ,'`._   _.'`.".to_string(),
-            "   '   / `!` \\   `".to_string(),
-            "      ;   :   ;".to_string(),
-        ]
-    }
-
-    fn create_frame_2() -> Vec<String> {
-        vec![
-            "      .   |   .".to_string(),
-            "   ;   \\_,|,_/   ;".to_string(),
-            "    `.,'     `.,'".to_string(),
-            "     /         \\".to_string(),
-            "~ -- |         | -- ~".to_string(),
-            "     \\         /".to_string(),
-            "    ,'`._   _.'`.".to_string(),
-            "   ;   / `|` \\   ;".to_string(),
-            "      .   |   .".to_string(),
-        ]
     }
 }
 

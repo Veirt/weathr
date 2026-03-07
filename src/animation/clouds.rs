@@ -8,7 +8,23 @@ use rand::{Rng, RngExt};
 use std::io;
 use std::sync::OnceLock;
 
+const CLOUD_SHAPE_SRCS: [&str; 4] = [
+    include_str!("assets/cloud_0.txt"),
+    include_str!("assets/cloud_1.txt"),
+    include_str!("assets/cloud_2.txt"),
+    include_str!("assets/cloud_3.txt"),
+];
+
 static CLOUD_SHAPES: OnceLock<Vec<Vec<String>>> = OnceLock::new();
+
+fn cloud_shapes() -> &'static Vec<Vec<String>> {
+    CLOUD_SHAPES.get_or_init(|| {
+        CLOUD_SHAPE_SRCS
+            .iter()
+            .map(|src| src.lines().map(|l| l.to_string()).collect())
+            .collect()
+    })
+}
 
 struct Cloud {
     x: f32,
@@ -88,7 +104,7 @@ impl CloudSystem {
         base_wind_x: f32,
         rng: &mut (impl Rng + ?Sized),
     ) -> Cloud {
-        let shapes = CLOUD_SHAPES.get_or_init(Self::create_cloud_shapes);
+        let shapes = cloud_shapes();
 
         let shape_idx = rng.random_range(0..shapes.len());
         let shape = shapes[shape_idx].clone();
@@ -106,35 +122,6 @@ impl CloudSystem {
             shape,
             color,
         }
-    }
-
-    fn create_cloud_shapes() -> Vec<Vec<String>> {
-        let shapes = [
-            vec![
-                "   .--.   ".to_string(),
-                " .-(    ). ".to_string(),
-                "(___.__)_)".to_string(),
-            ],
-            vec![
-                "      _  _   ".to_string(),
-                "    ( `   )_ ".to_string(),
-                "   (    )    `)".to_string(),
-                "    \\_  (___  )".to_string(),
-            ],
-            vec![
-                "     .--.    ".to_string(),
-                "  .-(    ).  ".to_string(),
-                " (___.__)__) ".to_string(),
-            ],
-            vec![
-                "   _  _   ".to_string(),
-                "  ( `   )_ ".to_string(),
-                " (    )   `)".to_string(),
-                "  `--'     ".to_string(),
-            ],
-        ];
-
-        shapes.to_vec()
     }
 
     pub fn update(

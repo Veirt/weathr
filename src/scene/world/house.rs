@@ -3,6 +3,8 @@ use crate::scene::SceneContext;
 use crossterm::style::Color;
 use std::io;
 
+const HOUSE_ASCII: &str = include_str!("assets/house.txt");
+
 const DOOR_COLOR: Color = Color::Rgb {
     r: 139,
     g: 69,
@@ -27,21 +29,6 @@ impl House {
 
     pub fn height(&self) -> u16 {
         Self::HEIGHT
-    }
-
-    fn ascii() -> &'static [&'static str] {
-        &[
-            "            _   _._          ",
-            "           |_|-'_~_`-._      ",
-            "        _.-'-_~_-~_-~-_`-._  ",
-            "    _.-'_~-_~-_-~-_~_~-_~-_`-._",
-            "   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
-            "     |  []  []   []   []  [] |",
-            "     |           __    ___   |",
-            "   ._|  []  []  | .|  [___]  |_._._._._._._._._._._._._._._._._.",
-            "   |=|________()|__|()_______|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|",
-            " ^^^^^^^^^^^^^^^ === ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        ]
     }
 
     pub fn render(
@@ -76,7 +63,7 @@ impl House {
             palette.ground_night
         };
 
-        for (i, line) in Self::ascii().iter().enumerate() {
+        for (i, line) in HOUSE_ASCII.lines().enumerate() {
             let row = y + i as u16;
 
             match i {

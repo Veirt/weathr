@@ -3,6 +3,11 @@ use crate::scene::SceneContext;
 use crossterm::style::Color;
 use std::io;
 
+const TREE_ASCII: &str = include_str!("assets/tree.txt");
+const FENCE_ASCII: &str = include_str!("assets/fence.txt");
+const MAILBOX_ASCII: &str = include_str!("assets/mailbox.txt");
+const PINE_TREE_ASCII: &str = include_str!("assets/pine_tree.txt");
+
 pub struct Decorations;
 
 pub struct DecorationLayout {
@@ -38,13 +43,18 @@ impl Decorations {
         layout: &DecorationLayout,
         is_day: bool,
     ) -> io::Result<()> {
-        let (lines, color) = Self::tree_art(is_day);
+        let color = if is_day {
+            Color::DarkGreen
+        } else {
+            Color::Rgb { r: 0, g: 50, b: 0 }
+        };
         let tree_x = layout.house_x.saturating_sub(20);
         if tree_x == 0 {
             return Ok(());
         }
-        let tree_y = layout.horizon_y.saturating_sub(lines.len() as u16);
-        render_art(renderer, lines, tree_x, tree_y, color)
+        let line_count = TREE_ASCII.lines().count() as u16;
+        let tree_y = layout.horizon_y.saturating_sub(line_count);
+        render_art(renderer, TREE_ASCII, tree_x, tree_y, color)
     }
 
     fn render_fence(
@@ -53,13 +63,14 @@ impl Decorations {
         layout: &DecorationLayout,
         is_day: bool,
     ) -> io::Result<()> {
-        let (lines, color) = Self::fence_art(is_day);
+        let color = if is_day { Color::White } else { Color::Grey };
         let fence_x = layout.house_x + layout.house_width + 2;
         if fence_x >= layout.width {
             return Ok(());
         }
-        let fence_y = layout.horizon_y.saturating_sub(lines.len() as u16);
-        render_art(renderer, lines, fence_x, fence_y, color)
+        let line_count = FENCE_ASCII.lines().count() as u16;
+        let fence_y = layout.horizon_y.saturating_sub(line_count);
+        render_art(renderer, FENCE_ASCII, fence_x, fence_y, color)
     }
 
     fn render_mailbox(
@@ -68,14 +79,15 @@ impl Decorations {
         layout: &DecorationLayout,
         is_day: bool,
     ) -> io::Result<()> {
+        let color = if is_day { Color::Blue } else { Color::DarkBlue };
         let tree_x = layout.house_x.saturating_sub(20);
-        let (lines, color) = Self::mailbox_art(is_day);
         let mailbox_x = tree_x.saturating_sub(10);
         if mailbox_x >= layout.width {
             return Ok(());
         }
-        let mailbox_y = layout.horizon_y.saturating_sub(lines.len() as u16);
-        render_art(renderer, lines, mailbox_x, mailbox_y, color)
+        let line_count = MAILBOX_ASCII.lines().count() as u16;
+        let mailbox_y = layout.horizon_y.saturating_sub(line_count);
+        render_art(renderer, MAILBOX_ASCII, mailbox_x, mailbox_y, color)
     }
 
     fn render_pine_tree(
@@ -84,72 +96,29 @@ impl Decorations {
         layout: &DecorationLayout,
         is_day: bool,
     ) -> io::Result<()> {
-        let (lines, color) = Self::pine_tree_art(is_day);
+        let color = if is_day {
+            Color::DarkGreen
+        } else {
+            Color::Rgb { r: 0, g: 50, b: 0 }
+        };
         let pine_x = layout.house_x + layout.house_width + 18;
         if pine_x + 10 >= layout.width {
             return Ok(());
         }
-        let pine_y = layout.horizon_y.saturating_sub(lines.len() as u16);
-        render_art(renderer, lines, pine_x, pine_y, color)
-    }
-
-    fn tree_art(is_day: bool) -> (&'static [&'static str], Color) {
-        (
-            &[
-                "      ####      ",
-                "    ########    ",
-                "   ##########   ",
-                "    ########    ",
-                "      _||_      ",
-            ],
-            if is_day {
-                Color::DarkGreen
-            } else {
-                Color::Rgb { r: 0, g: 50, b: 0 }
-            },
-        )
-    }
-
-    fn fence_art(is_day: bool) -> (&'static [&'static str], Color) {
-        (
-            &["|--|--|--|--|", "|  |  |  |  |"],
-            if is_day { Color::White } else { Color::Grey },
-        )
-    }
-
-    fn mailbox_art(is_day: bool) -> (&'static [&'static str], Color) {
-        (
-            &[" ___ ", "|___|", "  |  "],
-            if is_day { Color::Blue } else { Color::DarkBlue },
-        )
-    }
-
-    fn pine_tree_art(is_day: bool) -> (&'static [&'static str], Color) {
-        (
-            &[
-                "    *    ",
-                "   ***   ",
-                "  *****  ",
-                " ******* ",
-                "   |||   ",
-            ],
-            if is_day {
-                Color::DarkGreen
-            } else {
-                Color::Rgb { r: 0, g: 50, b: 0 }
-            },
-        )
+        let line_count = PINE_TREE_ASCII.lines().count() as u16;
+        let pine_y = layout.horizon_y.saturating_sub(line_count);
+        render_art(renderer, PINE_TREE_ASCII, pine_x, pine_y, color)
     }
 }
 
 fn render_art(
     renderer: &mut TerminalRenderer,
-    lines: &[&str],
+    ascii: &str,
     x: u16,
     y: u16,
     color: Color,
 ) -> io::Result<()> {
-    for (i, line) in lines.iter().enumerate() {
+    for (i, line) in ascii.lines().enumerate() {
         for (j, ch) in line.chars().enumerate() {
             if ch != ' ' {
                 renderer.render_char(x + j as u16, y + i as u16, ch, color)?;

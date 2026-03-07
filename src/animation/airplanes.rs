@@ -60,21 +60,13 @@ impl AirplaneSystem {
     }
 
     pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
-        let airplane_art = [
-            "           _",
-            "         -=\\`\\",
-            "     |\\ ____\\_\\__",
-            "   -=\\c`\"\"\"\"\"\"\" \"`)",
-            "      `~~~~~/ /~~`",
-            "        -==/ /",
-            "          '-'",
-        ];
+        const AIRPLANE_ART: &str = include_str!("assets/airplane.txt");
 
         for plane in &self.planes {
             let x = plane.x as u16;
             let y = plane.y as u16;
 
-            for (line_offset, line) in airplane_art.iter().enumerate() {
+            for (line_offset, line) in AIRPLANE_ART.lines().enumerate() {
                 let render_y = y + line_offset as u16;
                 if render_y >= self.terminal_height {
                     break;
