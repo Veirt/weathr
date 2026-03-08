@@ -32,6 +32,12 @@ pub struct Config {
     pub silent: bool,
     #[serde(default)]
     pub provider: HashMap<Provider, Table>,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+}
+
+fn default_theme() -> String {
+    "default".to_string()
 }
 
 #[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Copy)]
@@ -330,6 +336,7 @@ longitude = 0.0
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
+            theme: "default".to_string(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -352,6 +359,7 @@ longitude = 0.0
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
+            theme: "default".to_string(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -374,6 +382,7 @@ longitude = 0.0
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
+            theme: "default".to_string(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -396,6 +405,7 @@ longitude = 0.0
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
+            theme: "default".to_string(),
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -418,6 +428,7 @@ longitude = 0.0
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
+            theme: "default".to_string(),
         };
         let result = config.validate();
         assert!(result.is_ok());

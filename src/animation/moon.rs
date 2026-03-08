@@ -1,6 +1,20 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
+use rand::Rng;
+
 use std::io;
+
+const MOON_PHASES: [&str; 8] = [
+    include_str!("assets/moon/phase_0.txt"),
+    include_str!("assets/moon/phase_1.txt"),
+    include_str!("assets/moon/phase_2.txt"),
+    include_str!("assets/moon/phase_3.txt"),
+    include_str!("assets/moon/phase_4.txt"),
+    include_str!("assets/moon/phase_5.txt"),
+    include_str!("assets/moon/phase_6.txt"),
+    include_str!("assets/moon/phase_7.txt"),
+];
 
 pub struct MoonSystem {
     phase: f64, // 0.0 = New, 0.25 = First Quarter, 0.5 = Full, 0.75 = Last Quarter
@@ -28,84 +42,9 @@ impl MoonSystem {
 
     pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
         let step = (self.phase * 8.0).round() as usize % 8;
+        let art = MOON_PHASES[step];
 
-        let art = match step {
-            0 => vec![
-                // NEW MOON (Invisible)
-                "                 ",
-                "                 ",
-                "                 ",
-                "                 ",
-                "                 ",
-                "                 ",
-            ],
-            1 => vec![
-                // WAXING CRESCENT (Thin, mostly edge)
-                "             .    ",
-                "            . `.  ",
-                "               :  ",
-                "               :  ",
-                "            . .'  ",
-                "             `    ",
-            ],
-            2 => vec![
-                // FIRST QUARTER (Right Half - Solid)
-                "            _     ",
-                "           |~ `.  ",
-                "           |~~~~: ",
-                "           |~~~~: ",
-                "           |~ .'  ",
-                "           |-'    ",
-            ],
-            3 => vec![
-                // WAXING GIBBOUS (Mostly full, textured)
-                "         ..._     ",
-                "       .'~~~~`.   ",
-                "      |~~~~o~~~:  ",
-                "      |~.~~~~o~:  ",
-                "       `.~~~~~'   ",
-                "         `...-'   ",
-            ],
-            4 => vec![
-                // FULL MOON (Full Circle, textured with craters)
-                "       _..._      ",
-                "     .'~o~~~`.    ",
-                "    :~~~~~o~~~:   ",
-                "    :~~o~~~~.~:   ",
-                "    `.~~~~~o~.'   ",
-                "      `-...-'     ",
-            ],
-            5 => vec![
-                // WANING GIBBOUS
-                "       _...       ",
-                "     .'~~~~`.     ",
-                "    :~~~o~~~~|    ",
-                "    :~o~~~~.~|    ",
-                "    `.~~~~~.'     ",
-                "      `-...-'     ",
-            ],
-            6 => vec![
-                // LAST QUARTER
-                "        _         ",
-                "      .' ~|       ",
-                "     :~~~~|       ",
-                "     :~~~~|       ",
-                "      `.~ |       ",
-                "        `-|       ",
-            ],
-            7 => vec![
-                // WANING CRESCENT
-                "        .         ",
-                "      .' .        ",
-                "     :            ",
-                "     :            ",
-                "      '. .        ",
-                "        `         ",
-            ],
-            _ => vec![],
-        };
-
-        for (i, line) in art.iter().enumerate() {
+        for (i, line) in art.lines().enumerate() {
             let y = self.y + i as u16;
             for (j, ch) in line.chars().enumerate() {
                 if ch == ' ' {
@@ -124,5 +63,44 @@ impl MoonSystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for MoonSystem {
+    fn id(&self) -> &'static str {
+        "moon"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Background
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        !ctx.conditions.is_day
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.update(size.width, size.height);
+    }
+
+    fn on_moon_phase(&mut self, phase: f64) {
+        self.set_phase(phase);
+    }
+
+    fn update(
+        &mut self,
+        ctx: &FrameContext<'_>,
+        _rng: &mut dyn Rng,
+        _commands: &mut FrameCommands,
+    ) {
+        self.update(ctx.size.width, ctx.size.height);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        MoonSystem::render(self, renderer)
     }
 }

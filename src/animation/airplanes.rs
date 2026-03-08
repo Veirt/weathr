@@ -1,6 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 
 #[derive(Clone)]
@@ -27,7 +29,12 @@ impl AirplaneSystem {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -44,29 +51,22 @@ impl AirplaneSystem {
         }
     }
 
-    fn spawn_plane(&mut self, rng: &mut impl Rng) {
-        let y = (rng.random::<u16>() % (self.terminal_height / 4)) as f32;
+    fn spawn_plane(&mut self, rng: &mut (impl Rng + ?Sized)) {
+        let spawn_band = (self.terminal_height / 4).max(1);
+        let y = (rng.random::<u16>() % spawn_band) as f32;
         let speed = 0.3 + (rng.random::<f32>() * 0.2);
 
         self.planes.push(Airplane { x: 0.0, y, speed });
     }
 
     pub fn render(&self, renderer: &mut TerminalRenderer) -> io::Result<()> {
-        let airplane_art = [
-            "           _",
-            "         -=\\`\\",
-            "     |\\ ____\\_\\__",
-            "   -=\\c`\"\"\"\"\"\"\" \"`)",
-            "      `~~~~~/ /~~`",
-            "        -==/ /",
-            "          '-'",
-        ];
+        const AIRPLANE_ART: &str = include_str!("assets/airplane.txt");
 
         for plane in &self.planes {
             let x = plane.x as u16;
             let y = plane.y as u16;
 
-            for (line_offset, line) in airplane_art.iter().enumerate() {
+            for (line_offset, line) in AIRPLANE_ART.lines().enumerate() {
                 let render_y = y + line_offset as u16;
                 if render_y >= self.terminal_height {
                     break;
@@ -96,5 +96,41 @@ impl AirplaneSystem {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for AirplaneSystem {
+    fn id(&self) -> &'static str {
+        "airplanes"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Background
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        !ctx.conditions.is_raining
+            && !ctx.conditions.is_thunderstorm
+            && !ctx.conditions.is_snowing
+            && !ctx.conditions.is_foggy
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        self.planes
+            .retain(|p| p.x < size.width as f32 && p.y < size.height as f32);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        AirplaneSystem::render(self, renderer)
     }
 }

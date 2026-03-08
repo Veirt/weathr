@@ -1,8 +1,11 @@
 pub mod animation;
+pub mod animation_manager;
+pub mod app_state;
 pub mod cache;
 pub mod config;
 pub mod error;
 pub mod geolocation;
 pub mod render;
 pub mod scene;
+pub mod theme;
 pub mod weather;

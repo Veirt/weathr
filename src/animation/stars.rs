@@ -1,6 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 
 #[derive(Clone, Copy)]
@@ -46,13 +48,18 @@ impl StarSystem {
         terminal_height: u16,
         initial_stars: &[Star],
     ) -> Vec<Star> {
+        if terminal_width == 0 || terminal_height == 0 {
+            return Vec::new();
+        }
+
         let mut rng = rand::rng();
+        let sky_height = (terminal_height / 2).max(1);
         let count = (terminal_width as usize * terminal_height as usize) / 80;
 
         let mut stars: Vec<Star> = initial_stars
             .iter()
             .cloned()
-            .filter(|s| s.x < terminal_width && s.y < terminal_height / 2)
+            .filter(|s| s.x < terminal_width && s.y < sky_height)
             .take(count)
             .collect();
 
@@ -63,7 +70,7 @@ impl StarSystem {
 
             loop {
                 let x = rng.random::<u16>() % terminal_width;
-                let y = rng.random::<u16>() % (terminal_height / 2);
+                let y = rng.random::<u16>() % sky_height;
 
                 let too_close = stars.iter().any(|star: &Star| {
                     let dx = (star.x as f32 - x as f32).abs();
@@ -89,7 +96,20 @@ impl StarSystem {
         stars
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
+        if terminal_width == 0 || terminal_height == 0 {
+            self.stars.clear();
+            self.shooting_star = None;
+            self.terminal_width = terminal_width;
+            self.terminal_height = terminal_height;
+            return;
+        }
+
         if terminal_width != self.terminal_width || terminal_height != self.terminal_height {
             // Fix stars not resizing
             self.stars = Self::create_stars(terminal_width, terminal_height, &self.stars);
@@ -115,8 +135,12 @@ impl StarSystem {
                 self.shooting_star = None;
             }
         } else if rng.random::<f32>() < 0.005 {
-            let start_x = (rng.random::<u16>() % (terminal_width / 2)) + (terminal_width / 4);
-            let start_y = rng.random::<u16>() % (terminal_height / 4);
+            let half_width = (terminal_width / 2).max(1);
+            let quarter_width = terminal_width / 4;
+            let quarter_height = (terminal_height / 4).max(1);
+
+            let start_x = (rng.random::<u16>() % half_width) + quarter_width;
+            let start_y = rng.random::<u16>() % quarter_height;
 
             self.shooting_star = Some(ShootingStar {
                 x: start_x as f32,
@@ -177,5 +201,40 @@ impl StarSystem {
         }
 
         Ok(())
+    }
+}
+
+impl AnimationSystem for StarSystem {
+    fn id(&self) -> &'static str {
+        "stars"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Background
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        !ctx.conditions.is_day
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.stars = Self::create_stars(size.width, size.height, &self.stars);
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        if size.width == 0 || size.height == 0 {
+            self.shooting_star = None;
+        }
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        StarSystem::render(self, renderer)
     }
 }

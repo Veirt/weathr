@@ -9,6 +9,7 @@ mod error;
 mod geolocation;
 mod render;
 mod scene;
+mod theme;
 mod weather;
 
 use clap::{CommandFactory, Parser};

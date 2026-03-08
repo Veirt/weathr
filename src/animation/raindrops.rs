@@ -1,7 +1,11 @@
+use crate::animation::{
+    AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize, Wind,
+};
 use crate::render::TerminalRenderer;
 use crate::weather::types::RainIntensity;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::collections::VecDeque;
 use std::io;
 
@@ -81,9 +85,9 @@ impl RaindropSystem {
         self.wind_x = speed_factor * x_component;
     }
 
-    fn spawn_drop(&mut self, rng: &mut impl Rng) {
-        let x = (rng.random::<u32>() % (self.terminal_width as u32 * 2)) as f32
-            - (self.terminal_width as f32 * 0.5);
+    fn spawn_drop(&mut self, rng: &mut (impl Rng + ?Sized)) {
+        let span = (self.terminal_width as u32).saturating_mul(2).max(1);
+        let x = (rng.random::<u32>() % span) as f32 - (self.terminal_width as f32 * 0.5);
         let z_index = if rng.random::<bool>() { 1 } else { 0 };
 
         let (speed_y, chars, color) = match self.intensity {
@@ -143,7 +147,12 @@ impl RaindropSystem {
         });
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -173,16 +182,18 @@ impl RaindropSystem {
             _ => 0.6,
         };
 
+        let ground_y = terminal_height.saturating_sub(1);
+
         self.drops.retain_mut(|drop| {
             drop.y += drop.speed_y;
             drop.x += drop.speed_x;
 
             // Hit ground?
-            if drop.y >= (terminal_height - 1) as f32 {
+            if drop.y >= ground_y as f32 {
                 if drop.z_index == 1 && rng.random::<f32>() < splash_chance {
                     new_splashes.push_back(Splash {
                         x: drop.x as u16,
-                        y: terminal_height - 1,
+                        y: ground_y,
                         timer: 0,
                         max_timer: 3,
                     });
@@ -249,5 +260,52 @@ impl RaindropSystem {
         }
 
         Ok(())
+    }
+}
+
+impl AnimationSystem for RaindropSystem {
+    fn id(&self) -> &'static str {
+        "rain"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Foreground
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        ctx.conditions.is_raining || ctx.conditions.is_thunderstorm
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        self.drops.retain(|d| {
+            d.x >= -10.0
+                && d.x <= (size.width as f32 + 10.0)
+                && d.y >= 0.0
+                && d.y < size.height as f32
+        });
+        self.splashes
+            .retain(|s| s.x < size.width && s.y < size.height);
+    }
+
+    fn on_wind(&mut self, wind: Wind) {
+        self.set_wind(wind.speed_kmh, wind.direction_deg);
+    }
+
+    fn on_rain_intensity(&mut self, intensity: RainIntensity) {
+        self.set_intensity(intensity);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        RaindropSystem::render(self, renderer)
     }
 }

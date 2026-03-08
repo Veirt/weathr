@@ -1,6 +1,8 @@
+use crate::animation::{AnimationSystem, FrameCommands, FrameContext, RenderLayer, TerminalSize};
 use crate::render::TerminalRenderer;
 use crossterm::style::Color;
-use rand::prelude::*;
+
+use rand::{Rng, RngExt};
 use std::io;
 
 struct Leaf {
@@ -16,12 +18,17 @@ struct Leaf {
 }
 
 impl Leaf {
-    fn new(terminal_width: u16, spawn_at_top: bool, rng: &mut impl Rng) -> Self {
+    fn new(
+        terminal_width: u16,
+        terminal_height: u16,
+        spawn_at_top: bool,
+        rng: &mut (impl Rng + ?Sized),
+    ) -> Self {
         let x = rng.random::<f32>() * terminal_width as f32;
         let y = if spawn_at_top {
             -(rng.random::<f32>() * 5.0)
         } else {
-            rng.random::<f32>() * terminal_width as f32
+            rng.random::<f32>() * terminal_height as f32
         };
 
         let fall_speed = 0.15 + (rng.random::<f32>() * 0.2);
@@ -136,7 +143,7 @@ impl FallingLeaves {
         let mut leaves = Vec::with_capacity(max_capacity);
 
         for _ in 0..initial_count {
-            leaves.push(Leaf::new(terminal_width, false, &mut rng));
+            leaves.push(Leaf::new(terminal_width, terminal_height, false, &mut rng));
         }
 
         Self {
@@ -148,7 +155,12 @@ impl FallingLeaves {
         }
     }
 
-    pub fn update(&mut self, terminal_width: u16, terminal_height: u16, rng: &mut impl Rng) {
+    pub fn update(
+        &mut self,
+        terminal_width: u16,
+        terminal_height: u16,
+        rng: &mut (impl Rng + ?Sized),
+    ) {
         self.terminal_width = terminal_width;
         self.terminal_height = terminal_height;
 
@@ -162,7 +174,8 @@ impl FallingLeaves {
         if self.spawn_counter >= self.spawn_rate {
             self.spawn_counter = 0;
             if rng.random::<f32>() < 0.7 {
-                self.leaves.push(Leaf::new(terminal_width, true, rng));
+                self.leaves
+                    .push(Leaf::new(terminal_width, terminal_height, true, rng));
             }
         }
 
@@ -183,5 +196,41 @@ impl FallingLeaves {
             }
         }
         Ok(())
+    }
+}
+
+impl AnimationSystem for FallingLeaves {
+    fn id(&self) -> &'static str {
+        "leaves"
+    }
+
+    fn layer(&self) -> RenderLayer {
+        RenderLayer::Foreground
+    }
+
+    fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
+        ctx.show_leaves
+            && !ctx.conditions.is_raining
+            && !ctx.conditions.is_thunderstorm
+            && !ctx.conditions.is_snowing
+    }
+
+    fn on_resize(&mut self, size: TerminalSize) {
+        self.terminal_width = size.width;
+        self.terminal_height = size.height;
+        self.leaves
+            .retain(|l| l.y < size.height as f32 && l.x > -10.0 && l.x < size.width as f32 + 10.0);
+    }
+
+    fn update(&mut self, ctx: &FrameContext<'_>, rng: &mut dyn Rng, _commands: &mut FrameCommands) {
+        self.update(ctx.size.width, ctx.size.height, rng);
+    }
+
+    fn render(
+        &mut self,
+        renderer: &mut TerminalRenderer,
+        _ctx: &FrameContext<'_>,
+    ) -> io::Result<()> {
+        FallingLeaves::render(self, renderer)
     }
 }

@@ -1,81 +1,66 @@
-pub mod decorations;
-pub mod ground;
-pub mod house;
+pub mod overlay;
+pub mod world;
 
 use crate::render::TerminalRenderer;
+use crate::theme::Palette;
 use crate::weather::WeatherConditions;
+use std::collections::HashMap;
 use std::io;
 
-pub struct WorldScene {
-    house: house::House,
-    ground: ground::Ground,
-    decorations: decorations::Decorations,
-    width: u16,
-    height: u16,
+pub struct SceneContext<'a> {
+    pub conditions: &'a WeatherConditions,
+    pub palette: &'a Palette,
 }
 
-impl WorldScene {
-    pub const GROUND_HEIGHT: u16 = 7;
+#[derive(Clone, Copy)]
+pub struct SceneLayout {
+    pub ground_y: u16,
+    pub chimney_pos: Option<ChimneyPosition>,
+    pub width: u16,
+    pub height: u16,
+}
 
-    pub fn new(width: u16, height: u16) -> Self {
-        let house = house::House;
-        let ground = ground::Ground;
-        let decorations = decorations::Decorations::new();
+#[derive(Clone, Copy)]
+pub struct ChimneyPosition {
+    pub x: u16,
+    pub y: u16,
+}
 
+pub trait Scene: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn update_size(&mut self, width: u16, height: u16);
+    fn render(&self, renderer: &mut TerminalRenderer, ctx: &SceneContext<'_>) -> io::Result<()>;
+    fn layout(&self) -> SceneLayout;
+}
+
+pub struct SceneRegistry {
+    scenes: HashMap<&'static str, Box<dyn Scene>>,
+}
+
+impl SceneRegistry {
+    pub fn new() -> Self {
         Self {
-            house,
-            ground,
-            decorations,
-            width,
-            height,
+            scenes: HashMap::new(),
         }
     }
 
-    pub fn update_size(&mut self, width: u16, height: u16) {
-        self.width = width;
-        self.height = height;
+    pub fn register(&mut self, scene: Box<dyn Scene>) {
+        self.scenes.insert(scene.id(), scene);
     }
 
-    pub fn render(
-        &self,
-        renderer: &mut TerminalRenderer,
-        conditions: &WeatherConditions,
-    ) -> io::Result<()> {
-        let horizon_y = self.height.saturating_sub(Self::GROUND_HEIGHT);
+    pub fn get(&self, id: &str) -> Option<&dyn Scene> {
+        self.scenes.get(id).map(|b| b.as_ref())
+    }
 
-        // House position
-        let house_width = self.house.width();
-        let house_height = self.house.height();
-        let house_x = (self.width / 2).saturating_sub(house_width / 2);
-        let house_y = horizon_y.saturating_sub(house_height);
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut dyn Scene> {
+        self.scenes
+            .get_mut(id)
+            .map(|b| -> &mut dyn Scene { b.as_mut() })
+    }
+}
 
-        // Door/Path alignment
-
-        // Render Ground
-        self.ground.render(
-            renderer,
-            self.width,
-            Self::GROUND_HEIGHT,
-            horizon_y,
-            conditions.is_day,
-        )?;
-
-        // Render House
-        self.house
-            .render(renderer, house_x, house_y, conditions.is_day)?;
-
-        // Render Decorations
-        self.decorations.render(
-            renderer,
-            &crate::scene::decorations::DecorationRenderConfig {
-                horizon_y,
-                house_x,
-                house_width,
-                width: self.width,
-                is_day: conditions.is_day,
-            },
-        )?;
-
-        Ok(())
+impl Default for SceneRegistry {
+    fn default() -> Self {
+        Self::new()
     }
 }
