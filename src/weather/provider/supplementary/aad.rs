@@ -190,7 +190,7 @@ struct SunData {
 
 impl SunData {
     fn get_time(&self) -> String {
-        self.time.clone().replace("  ST", "") // Unsure what ST stands for, but its not needed
+        self.time.clone().replace("  ST", "").replace("  DT", "") // Figured out what ST and DT mean (Standard Time & Daylight Time)
     }
 
     fn to_chrono_time(&self) -> Result<NaiveTime, WeatherError> {
