@@ -84,8 +84,12 @@ pub struct Cli {
     pub fullscreen: bool,
 
     #[cfg(target_os = "windows")]
-    #[arg(long, help = "Don't respawn into conhost when --fullscreen is enabled")]
-    pub conhost: bool,
+    #[arg(
+        long,
+        help = "Don't respawn into conhost when --fullscreen is enabled",
+        hide = true
+    )]
+    pub forked: bool,
 }
 
 pub fn extract_simulate_missing_value(err: clap::Error) -> clap::Error {

@@ -22,13 +22,6 @@ pub mod windows {
         args.contains(&".scr".to_string())
     }
 
-    pub fn rename_binary_to_scr() {
-        let binding = std::env::current_exe().unwrap();
-        let exe_path = binding.to_str().unwrap();
-        let new_exe_path = exe_path.replace(".exe", ".scr");
-        std::fs::copy(exe_path, new_exe_path).unwrap();
-    }
-
     pub fn normalize_args() -> Vec<String> {
         env::args()
             .map(|arg| {
@@ -51,6 +44,9 @@ pub mod windows {
             .collect()
     }
 
+    /// Only useful in Windows 11, cannot run inside Windows Terminal
+    /// This handles all the logic for handling default CLI arguments for `.scr` files
+    /// Also includes logic for relaunching in conhost
     pub fn init_screensaver() -> windows::core::Result<()> {
         let args = normalize_args();
 
@@ -78,12 +74,17 @@ pub mod windows {
                 .expect("Failed to open config file in system text editor");
         }
 
-        if !args.contains(&"--conhost".to_string()) {
+        if !args.contains(&"--forked".to_string()) {
             relaunch_in_conhost();
         } // Always relaunch in conhost - Best way to avoid Win Terminal in Win11
-        make_full_screen()
+        // make_full_screen()
+
+        Ok(())
     }
 
+    /// Makes any console window fullscreen
+    /// In Windows 11 this creates some rather weird artifacts due to `Windows Terminal`
+    /// But it works fine in Windows 10, as a result ensure conhost.exe is the owner of the console
     pub fn make_full_screen() -> windows::core::Result<()> {
         unsafe {
             let hwnd: HWND = GetConsoleWindow();
@@ -126,10 +127,10 @@ pub mod windows {
     }
 
     /// Only useful in Windows 11, cannot run inside Windows Terminal
-    pub fn relaunch_in_conhost() {
+    pub fn relaunch_in_conhost() -> ! {
         let mut args = normalize_args();
 
-        args.push("--conhost".to_string());
+        args.push("--forked".to_string());
 
         Command::new("conhost")
             .args(args)

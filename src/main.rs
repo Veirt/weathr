@@ -44,8 +44,8 @@ async fn main() -> io::Result<()> {
     #[cfg(target_os = "windows")]
     let cli = {
         if screensaver::windows::is_screensaver() {
-            screensaver::windows::init_screensaver()?;
-            Cli::try_parse_from(screensaver::windows::normalize_args()) // This should only occur if ran by Windows itself
+            screensaver::windows::init_screensaver()?; // fysa: this function prepares a terminal 
+            Cli::try_parse_from(screensaver::windows::normalize_args())
         } else {
             Cli::try_parse()
         }
@@ -74,8 +74,10 @@ async fn main() -> io::Result<()> {
 
     #[cfg(target_os = "windows")]
     {
-        if cli.fullscreen {
+        if cli.fullscreen && cli.forked {
             screensaver::windows::make_full_screen()?;
+        } else if cli.fullscreen {
+            screensaver::windows::relaunch_in_conhost();
         }
     }
 
