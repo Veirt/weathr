@@ -13,7 +13,7 @@ impl WeatherNormalizer {
             precipitation: response.precipitation,
             wind_speed: response.wind_speed,
             wind_direction: response.wind_direction,
-            is_day: response.is_day == 1,
+            sun: response.sun,
             moon_phase: response.moon_phase,
             timestamp: response.timestamp,
             attribution: response.attribution,
@@ -44,6 +44,8 @@ impl WeatherNormalizer {
 
 #[cfg(test)]
 mod tests {
+    use crate::weather::types::CelestialEvents;
+
     use super::*;
 
     #[test]
@@ -98,7 +100,7 @@ mod tests {
             precipitation: 2.5,
             wind_speed: 15.0,
             wind_direction: 180.0,
-            is_day: 1,
+            sun: CelestialEvents::from_bool(true),
             moon_phase: Some(0.5),
             timestamp: "2024-01-01T12:00".to_string(),
             attribution: "".to_string(),
@@ -108,7 +110,7 @@ mod tests {
 
         assert_eq!(data.condition, WeatherCondition::Rain);
         assert_eq!(data.temperature, 20.5);
-        assert!(data.is_day);
+        assert!(data.sun.is_day);
         assert_eq!(data.moon_phase, Some(0.5));
     }
 }

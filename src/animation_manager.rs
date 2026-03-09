@@ -9,6 +9,7 @@ use crate::render::TerminalRenderer;
 use crate::scene::WorldScene;
 use crate::scene::house::House;
 use crate::weather::{FogIntensity, RainIntensity, SnowIntensity, WeatherConditions};
+use chrono::{Local, NaiveTime};
 use crossterm::style::Color;
 use std::io;
 use std::time::{Duration, Instant};
@@ -78,6 +79,43 @@ impl AnimationManager {
         self.fog_system.set_intensity(intensity);
     }
 
+    fn sun_y(
+        now: NaiveTime,
+        lowest: NaiveTime,
+        highest: NaiveTime,
+        horizon_y: u16,
+        default_animation_y: u16,
+    ) -> u16 {
+        use std::f64::consts::PI;
+        // This alters the max range the sun can move, this will have to become dynamic if #15 is implemented
+        const BUILDING_BIAS: u16 = 5;
+
+        // Half-period: the duration from a twilight edge to upper transit
+        let half_period = (highest - lowest).num_seconds().unsigned_abs() as f64;
+
+        if half_period == 0.0 {
+            // Sun is at its peak (upper-transit)
+            return default_animation_y;
+        }
+
+        // Absolute distance in time from upper transit
+        let dist_from_peak = (now - highest).num_seconds().unsigned_abs() as f64;
+
+        // Progress: 0 at transit, 1 at a twilight edge
+        let progress = (dist_from_peak / half_period).clamp(0.0, 1.0);
+
+        let range = horizon_y
+            .saturating_sub(default_animation_y)
+            .saturating_sub(BUILDING_BIAS) as f64;
+
+        // Cosine interpolation for a smooth arc:
+        //   progress 0 -> offset 0          -> sun at default_animation_y
+        //   progress 1 -> offset full range  -> sun at horizon_y
+        let offset = range * (1.0 - (progress * PI).cos()) / 2.0;
+
+        default_animation_y + offset.round() as u16
+    }
+
     pub fn render_background(
         &mut self,
         renderer: &mut TerminalRenderer,
@@ -91,7 +129,7 @@ impl AnimationManager {
         let ground_height = WorldScene::GROUND_HEIGHT;
         let horizon_y = term_height.saturating_sub(ground_height);
 
-        if !conditions.is_day {
+        if !conditions.sun.is_day {
             self.star_system.update(term_width, term_height, &mut rng);
             self.star_system.render(renderer)?;
             self.moon_system.update(term_width, term_height);
@@ -107,7 +145,7 @@ impl AnimationManager {
         if !conditions.is_raining
             && !conditions.is_thunderstorm
             && !conditions.is_snowing
-            && conditions.is_day
+            && conditions.sun.is_day
         {
             self.bird_system.update(term_width, term_height, &mut rng);
             self.bird_system.render(renderer)?;
@@ -118,7 +156,35 @@ impl AnimationManager {
             && !conditions.is_thunderstorm
             && !conditions.is_snowing
         {
-            let animation_y = if term_height > 20 { 3 } else { 2 };
+            let mut animation_y = if term_height > 20 { 3 } else { 2 };
+            let now: NaiveTime = Local::now().time();
+            if let Some(upper_transit) = conditions.sun.upper_transit
+                && now < upper_transit
+            {
+                animation_y = Self::sun_y(
+                    now,
+                    conditions.sun.begin_twight.unwrap(),
+                    conditions.sun.upper_transit.unwrap(),
+                    horizon_y,
+                    animation_y,
+                );
+            } else if let Some(end_twight) = conditions.sun.end_twight
+                && now < end_twight
+            {
+                animation_y = Self::sun_y(
+                    now,
+                    conditions.sun.end_twight.unwrap(),
+                    conditions.sun.upper_transit.unwrap(),
+                    horizon_y,
+                    animation_y,
+                );
+            } else if let Some(end_twight) = conditions.sun.end_twight
+                && now > end_twight
+            {
+                animation_y = term_height; // Hide the sun - This only occurs in edge cases
+            } else {
+                // todo!("{now} | {:?}", conditions.sun.end_twight) // Condition to check if I've made a mistake
+            }
             self.animation_controller
                 .render_frame(renderer, &self.sunny_animation, animation_y)?;
         }

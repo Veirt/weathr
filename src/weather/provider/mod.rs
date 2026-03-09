@@ -1,5 +1,5 @@
 use crate::error::WeatherError;
-use crate::weather::types::{WeatherLocation, WeatherUnits};
+use crate::weather::types::{CelestialEvents, WeatherLocation, WeatherUnits};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ pub struct WeatherProviderResponse {
     pub precipitation: f64,
     pub wind_speed: f64,
     pub wind_direction: f64,
-    pub is_day: i32,
+    pub sun: CelestialEvents,
     pub moon_phase: Option<f64>,
     pub timestamp: String,
     pub attribution: String,
