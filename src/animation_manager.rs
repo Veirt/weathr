@@ -8,6 +8,7 @@ use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
 use crate::scene::WorldScene;
 use crate::scene::house::House;
+use crate::weather::types::CelestialEvents;
 use crate::weather::{FogIntensity, RainIntensity, SnowIntensity, WeatherConditions};
 use chrono::{Local, NaiveTime};
 use crossterm::style::Color;
@@ -116,6 +117,42 @@ impl AnimationManager {
         default_animation_y + offset.round() as u16
     }
 
+    fn dynamic_sun_y(
+        now: NaiveTime,
+        sun: &CelestialEvents,
+        horizon_y: u16,
+        default_y: u16,
+        hidden_y: u16,
+    ) -> Option<u16> {
+        let (Some(begin_twilight), Some(upper_transit), Some(end_twilight)) =
+            (sun.begin_twilight, sun.upper_transit, sun.end_twilight)
+        else {
+            return None;
+        };
+
+        if now < upper_transit {
+            Some(Self::sun_y(
+                now,
+                begin_twilight,
+                upper_transit,
+                horizon_y,
+                default_y,
+            ))
+        } else if now < end_twilight {
+            Some(Self::sun_y(
+                now,
+                end_twilight,
+                upper_transit,
+                horizon_y,
+                default_y,
+            ))
+        } else if now > end_twilight {
+            Some(hidden_y)
+        } else {
+            None
+        }
+    }
+
     pub fn render_background(
         &mut self,
         renderer: &mut TerminalRenderer,
@@ -158,33 +195,11 @@ impl AnimationManager {
         {
             let mut animation_y = if term_height > 20 { 3 } else { 2 };
             let now: NaiveTime = Local::now().time();
-            if let Some(upper_transit) = conditions.sun.upper_transit
-                && now < upper_transit
-            {
-                animation_y = Self::sun_y(
-                    now,
-                    conditions.sun.begin_twight.unwrap(),
-                    conditions.sun.upper_transit.unwrap(),
-                    horizon_y,
-                    animation_y,
-                );
-            } else if let Some(end_twight) = conditions.sun.end_twight
-                && now < end_twight
-            {
-                animation_y = Self::sun_y(
-                    now,
-                    conditions.sun.end_twight.unwrap(),
-                    conditions.sun.upper_transit.unwrap(),
-                    horizon_y,
-                    animation_y,
-                );
-            } else if let Some(end_twight) = conditions.sun.end_twight
-                && now > end_twight
-            {
-                animation_y = term_height; // Hide the sun - This only occurs in edge cases
-            } else {
-                // todo!("{now} | {:?}", conditions.sun.end_twight) // Condition to check if I've made a mistake
-            }
+
+            animation_y =
+                Self::dynamic_sun_y(now, &conditions.sun, horizon_y, animation_y, term_height)
+                    .unwrap_or(animation_y);
+
             self.animation_controller
                 .render_frame(renderer, &self.sunny_animation, animation_y)?;
         }

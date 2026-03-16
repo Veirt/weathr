@@ -151,11 +151,11 @@ impl SupplementaryWeatherProvider for AADProvider {
 
                 let sun_times = CelestialEvents {
                     is_day,
-                    begin_twight: Some(start_twilight),
+                    begin_twilight: Some(start_twilight),
                     rise,
                     upper_transit,
                     set,
-                    end_twight: Some(end_twilight),
+                    end_twilight: Some(end_twilight),
                 };
 
                 Ok(SupplementaryProviderResponse::SunAndMoonForOneDay {

@@ -280,33 +280,33 @@ impl Default for WeatherConditions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CelestialEvents {
     pub is_day: bool,
-    pub begin_twight: Option<NaiveTime>,
+    pub begin_twilight: Option<NaiveTime>,
     pub rise: Option<NaiveTime>,
     pub upper_transit: Option<NaiveTime>,
     pub set: Option<NaiveTime>,
-    pub end_twight: Option<NaiveTime>,
+    pub end_twilight: Option<NaiveTime>,
 }
 
 impl CelestialEvents {
     pub fn only_day(is_day: i32) -> Self {
         Self {
             is_day: is_day == 1,
-            begin_twight: None,
+            begin_twilight: None,
             rise: None,
             upper_transit: None,
             set: None,
-            end_twight: None,
+            end_twilight: None,
         }
     }
 
     pub fn from_bool(is_day: bool) -> Self {
         Self {
             is_day,
-            begin_twight: None,
+            begin_twilight: None,
             rise: None,
             upper_transit: None,
             set: None,
-            end_twight: None,
+            end_twilight: None,
         }
     }
 }
