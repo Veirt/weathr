@@ -1,6 +1,5 @@
 use crate::render::TerminalRenderer;
-use crate::scene::SceneContext;
-use crossterm::style::Color;
+use crate::scene::world::style::WorldSceneStyle;
 use std::io;
 
 const TREE_ASCII: &str = include_str!("assets/tree.txt");
@@ -22,16 +21,14 @@ impl Decorations {
         &self,
         renderer: &mut TerminalRenderer,
         layout: &DecorationLayout,
-        ctx: &SceneContext<'_>,
+        style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let is_day = ctx.conditions.sun.is_day;
-
-        self.render_tree(renderer, layout, is_day)?;
-        self.render_fence(renderer, layout, is_day)?;
-        self.render_mailbox(renderer, layout, is_day)?;
+        self.render_tree(renderer, layout, style)?;
+        self.render_fence(renderer, layout, style)?;
+        self.render_mailbox(renderer, layout, style)?;
 
         if layout.width > 120 {
-            self.render_pine_tree(renderer, layout, is_day)?;
+            self.render_pine_tree(renderer, layout, style)?;
         }
 
         Ok(())
@@ -41,45 +38,38 @@ impl Decorations {
         &self,
         renderer: &mut TerminalRenderer,
         layout: &DecorationLayout,
-        is_day: bool,
+        style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let color = if is_day {
-            Color::DarkGreen
-        } else {
-            Color::Rgb { r: 0, g: 50, b: 0 }
-        };
         let tree_x = layout.house_x.saturating_sub(20);
         if tree_x == 0 {
             return Ok(());
         }
         let line_count = TREE_ASCII.lines().count() as u16;
         let tree_y = layout.horizon_y.saturating_sub(line_count);
-        render_art(renderer, TREE_ASCII, tree_x, tree_y, color)
+        render_art(renderer, TREE_ASCII, tree_x, tree_y, style.tree_foliage)
     }
 
     fn render_fence(
         &self,
         renderer: &mut TerminalRenderer,
         layout: &DecorationLayout,
-        is_day: bool,
+        style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let color = if is_day { Color::White } else { Color::Grey };
         let fence_x = layout.house_x + layout.house_width + 2;
         if fence_x >= layout.width {
             return Ok(());
         }
         let line_count = FENCE_ASCII.lines().count() as u16;
         let fence_y = layout.horizon_y.saturating_sub(line_count);
-        render_art(renderer, FENCE_ASCII, fence_x, fence_y, color)
+        render_art(renderer, FENCE_ASCII, fence_x, fence_y, style.fence)
     }
 
     fn render_mailbox(
         &self,
         renderer: &mut TerminalRenderer,
         layout: &DecorationLayout,
-        is_day: bool,
+        style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let color = if is_day { Color::Blue } else { Color::DarkBlue };
         let tree_x = layout.house_x.saturating_sub(20);
         let Some(mailbox_x) = tree_x.checked_sub(10) else {
             return Ok(());
@@ -89,27 +79,28 @@ impl Decorations {
         }
         let line_count = MAILBOX_ASCII.lines().count() as u16;
         let mailbox_y = layout.horizon_y.saturating_sub(line_count);
-        render_art(renderer, MAILBOX_ASCII, mailbox_x, mailbox_y, color)
+        render_art(renderer, MAILBOX_ASCII, mailbox_x, mailbox_y, style.mailbox)
     }
 
     fn render_pine_tree(
         &self,
         renderer: &mut TerminalRenderer,
         layout: &DecorationLayout,
-        is_day: bool,
+        style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let color = if is_day {
-            Color::DarkGreen
-        } else {
-            Color::Rgb { r: 0, g: 50, b: 0 }
-        };
         let pine_x = layout.house_x + layout.house_width + 18;
         if pine_x + 10 >= layout.width {
             return Ok(());
         }
         let line_count = PINE_TREE_ASCII.lines().count() as u16;
         let pine_y = layout.horizon_y.saturating_sub(line_count);
-        render_art(renderer, PINE_TREE_ASCII, pine_x, pine_y, color)
+        render_art(
+            renderer,
+            PINE_TREE_ASCII,
+            pine_x,
+            pine_y,
+            style.tree_foliage,
+        )
     }
 }
 
@@ -118,7 +109,7 @@ fn render_art(
     ascii: &str,
     x: u16,
     y: u16,
-    color: Color,
+    color: crossterm::style::Color,
 ) -> io::Result<()> {
     for (i, line) in ascii.lines().enumerate() {
         for (j, ch) in line.chars().enumerate() {

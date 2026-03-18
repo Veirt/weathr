@@ -1,20 +1,8 @@
 use crate::render::TerminalRenderer;
-use crate::scene::SceneContext;
-use crossterm::style::Color;
+use crate::scene::world::style::WorldSceneStyle;
 use std::io;
 
 const HOUSE_ASCII: &str = include_str!("assets/house.txt");
-
-const DOOR_COLOR: Color = Color::Rgb {
-    r: 139,
-    g: 69,
-    b: 19,
-};
-const DOOR_COLOR_NIGHT: Color = Color::Rgb {
-    r: 80,
-    g: 40,
-    b: 10,
-};
 
 pub struct House;
 
@@ -36,33 +24,8 @@ impl House {
         renderer: &mut TerminalRenderer,
         x: u16,
         y: u16,
-        ctx: &SceneContext<'_>,
+        style: &WorldSceneStyle,
     ) -> io::Result<()> {
-        let is_day = ctx.conditions.sun.is_day;
-        let palette = ctx.palette;
-
-        let wood_color = if is_day {
-            palette.accent_secondary
-        } else {
-            Color::Rgb {
-                r: 100,
-                g: 70,
-                b: 50,
-            }
-        };
-        let roof_color = if is_day {
-            palette.accent_primary
-        } else {
-            Color::DarkMagenta
-        };
-        let door_color = if is_day { DOOR_COLOR } else { DOOR_COLOR_NIGHT };
-        let window_color = if is_day { Color::Cyan } else { Color::Yellow };
-        let grass_color = if is_day {
-            palette.ground_day
-        } else {
-            palette.ground_night
-        };
-
         for (i, line) in HOUSE_ASCII.lines().enumerate() {
             let row = y + i as u16;
 
@@ -71,7 +34,7 @@ impl House {
                 0..=3 => {
                     for (j, ch) in line.chars().enumerate() {
                         if ch != ' ' {
-                            renderer.render_char(x + j as u16, row, ch, roof_color)?;
+                            renderer.render_char(x + j as u16, row, ch, style.roof)?;
                         }
                     }
                 }
@@ -79,7 +42,7 @@ impl House {
                 4 => {
                     for (j, ch) in line.chars().enumerate() {
                         if ch != ' ' {
-                            renderer.render_char(x + j as u16, row, ch, roof_color)?;
+                            renderer.render_char(x + j as u16, row, ch, style.roof)?;
                         }
                     }
                 }
@@ -88,11 +51,11 @@ impl House {
                     for (j, ch) in line.chars().enumerate() {
                         if ch != ' ' {
                             let color = match ch {
-                                '[' | ']' => window_color,
-                                '|' | '.' | '_' => wood_color,
-                                '(' | ')' => door_color,
-                                '=' => Color::DarkGrey,
-                                _ => wood_color,
+                                '[' | ']' => style.window,
+                                '|' | '.' | '_' => style.wood,
+                                '(' | ')' => style.door,
+                                '=' => style.trim,
+                                _ => style.wood,
                             };
                             renderer.render_char(x + j as u16, row, ch, color)?;
                         }
@@ -103,9 +66,9 @@ impl House {
                     for (j, ch) in line.chars().enumerate() {
                         if ch != ' ' {
                             let color = match ch {
-                                '=' | '|' => Color::DarkGrey,
-                                '(' | ')' => door_color,
-                                _ => wood_color,
+                                '=' | '|' => style.trim,
+                                '(' | ')' => style.door,
+                                _ => style.wood,
                             };
                             renderer.render_char(x + j as u16, row, ch, color)?;
                         }
@@ -116,9 +79,9 @@ impl House {
                     for (j, ch) in line.chars().enumerate() {
                         if ch != ' ' {
                             let color = match ch {
-                                '^' => grass_color,
-                                '=' => Color::DarkGrey,
-                                _ => Color::Reset,
+                                '^' => style.grass_primary,
+                                '=' => style.trim,
+                                _ => crossterm::style::Color::Reset,
                             };
                             renderer.render_char(x + j as u16, row, ch, color)?;
                         }

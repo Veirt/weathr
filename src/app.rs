@@ -24,6 +24,67 @@ use tokio::sync::mpsc;
 const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 const INPUT_POLL_FPS: u64 = 30;
 const FRAME_DURATION: Duration = Duration::from_millis(1000 / INPUT_POLL_FPS);
+const DEFAULT_THEME_ID: &str = "default";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ThemeBindings {
+    theme_id: &'static str,
+    scene_id: &'static str,
+    overlay_id: Option<&'static str>,
+}
+
+fn resolve_theme_bindings(
+    themes: &mut ThemeRegistry,
+    scenes: &SceneRegistry,
+    overlays: &OverlayRegistry,
+) -> ThemeBindings {
+    let mut theme_id = themes.active().id;
+    let mut scene_id = themes.active().scene_id;
+    let mut overlay_id = themes.active().overlay_id;
+
+    let scene_missing = scenes.get(scene_id).is_none();
+    if scene_missing {
+        if theme_id != DEFAULT_THEME_ID {
+            eprintln!(
+                "Warning: theme '{}' references missing scene '{}'. Falling back to '{}'.",
+                theme_id, scene_id, DEFAULT_THEME_ID
+            );
+            themes
+                .set_active(DEFAULT_THEME_ID)
+                .expect("default theme must be registered");
+            theme_id = themes.active().id;
+            scene_id = themes.active().scene_id;
+            overlay_id = themes.active().overlay_id;
+        } else {
+            panic!("default theme references missing scene '{}'.", scene_id);
+        }
+    }
+
+    if scenes.get(scene_id).is_none() {
+        panic!(
+            "theme '{}' references missing scene '{}', and no fallback scene is available",
+            theme_id, scene_id
+        );
+    }
+
+    let validated_overlay = overlay_id.and_then(|id| {
+        if overlays.get(id).is_some() {
+            Some(id)
+        } else {
+            eprintln!(
+                "Warning: theme '{}' references missing overlay '{}'. Overlay disabled.",
+                theme_id, id
+            );
+            None
+        }
+    });
+
+    ThemeBindings {
+        theme_id,
+        scene_id,
+        overlay_id: validated_overlay,
+    }
+}
 
 fn generate_offline_weather(rng: &mut impl rand::Rng) -> WeatherData {
     use chrono::{Local, Timelike};
@@ -65,6 +126,8 @@ pub struct App {
     scenes: SceneRegistry,
     overlays: OverlayRegistry,
     themes: ThemeRegistry,
+    active_scene_id: &'static str,
+    active_overlay_id: Option<&'static str>,
     weather_receiver: mpsc::Receiver<Result<WeatherData, WeatherError>>,
     hide_hud: bool,
 }
@@ -77,6 +140,7 @@ impl App {
         show_leaves: bool,
         term_width: u16,
         term_height: u16,
+        mut themes: ThemeRegistry,
     ) -> Self {
         let location = WeatherLocation {
             latitude: config.location.latitude,
@@ -97,9 +161,7 @@ impl App {
         scenes.register(Box::new(WorldScene::new(term_width, term_height)));
 
         let overlays = OverlayRegistry::new();
-
-        let mut themes = ThemeRegistry::new();
-        let _ = themes.set_active(&config.theme);
+        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
 
         let (tx, rx) = mpsc::channel(1);
 
@@ -185,6 +247,8 @@ impl App {
             scenes,
             overlays,
             themes,
+            active_scene_id: bindings.scene_id,
+            active_overlay_id: bindings.overlay_id,
             weather_receiver: rx,
             hide_hud: config.hide_hud,
         }
@@ -254,20 +318,13 @@ impl App {
             renderer.clear()?;
 
             let theme = self.themes.active();
-            let scene_id = theme.scene_id;
             let palette = &theme.palette;
-            let overlay_id = theme.overlay_id;
 
-            let resolved_scene_id = if self.scenes.get(scene_id).is_some() {
-                scene_id
-            } else {
-                "world"
-            };
             let (term_width, term_height) = renderer.get_size();
             let scene = self
                 .scenes
-                .get_mut(resolved_scene_id)
-                .expect("world scene must always be registered");
+                .get_mut(self.active_scene_id)
+                .expect("active scene must be registered");
             scene.update_size(term_width, term_height);
 
             let layout = scene.layout();
@@ -286,8 +343,9 @@ impl App {
 
             scene.render(renderer, &ctx)?;
 
-            if let Some(ov_id) = overlay_id {
-                if let Some(overlay) = self.overlays.get(ov_id) {
+            if let Some(ov_id) = self.active_overlay_id {
+                if let Some(overlay) = self.overlays.get_mut(ov_id) {
+                    overlay.update_size(term_width, term_height);
                     overlay.render(renderer, &ctx, &layout)?;
                 }
             }
@@ -357,5 +415,147 @@ impl App {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::render::TerminalRenderer;
+    use crate::scene::overlay::SceneOverlay;
+    use crate::scene::{Scene, SceneContext, SceneLayout};
+    use crate::theme::catalogue::DEFAULT_PALETTE;
+    use crate::theme::{Theme, ThemeRegistry};
+    use std::io;
+
+    struct TestScene {
+        id: &'static str,
+    }
+
+    impl TestScene {
+        fn new(id: &'static str) -> Self {
+            Self { id }
+        }
+    }
+
+    impl Scene for TestScene {
+        fn id(&self) -> &'static str {
+            self.id
+        }
+
+        fn update_size(&mut self, _width: u16, _height: u16) {}
+
+        fn render(
+            &self,
+            _renderer: &mut TerminalRenderer,
+            _ctx: &SceneContext<'_>,
+        ) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn layout(&self) -> SceneLayout {
+            SceneLayout {
+                ground_y: 0,
+                chimney_pos: None,
+                width: 0,
+                height: 0,
+            }
+        }
+    }
+
+    struct TestOverlay {
+        id: &'static str,
+    }
+
+    impl TestOverlay {
+        fn new(id: &'static str) -> Self {
+            Self { id }
+        }
+    }
+
+    impl SceneOverlay for TestOverlay {
+        fn id(&self) -> &'static str {
+            self.id
+        }
+
+        fn update_size(&mut self, _width: u16, _height: u16) {}
+
+        fn render(
+            &self,
+            _renderer: &mut TerminalRenderer,
+            _ctx: &SceneContext<'_>,
+            _layout: &SceneLayout,
+        ) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn scene_registry_with_world() -> SceneRegistry {
+        let mut scenes = SceneRegistry::new();
+        scenes.register(Box::new(TestScene::new("world")));
+        scenes
+    }
+
+    #[test]
+    fn bindings_fall_back_to_default_when_scene_missing() {
+        let scenes = scene_registry_with_world();
+        let overlays = OverlayRegistry::new();
+        let mut themes = ThemeRegistry::new();
+        themes.register(Theme {
+            id: "custom",
+            display_name: "Custom",
+            scene_id: "unknown",
+            overlay_id: None,
+            palette: DEFAULT_PALETTE,
+        });
+        themes.set_active("custom").unwrap();
+
+        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
+
+        assert_eq!(bindings.theme_id, DEFAULT_THEME_ID);
+        assert_eq!(bindings.scene_id, "world");
+        assert_eq!(bindings.overlay_id, None);
+    }
+
+    #[test]
+    fn bindings_disable_unregistered_overlay() {
+        let scenes = scene_registry_with_world();
+        let overlays = OverlayRegistry::new();
+        let mut themes = ThemeRegistry::new();
+        themes.register(Theme {
+            id: "overlay-theme",
+            display_name: "Overlay Theme",
+            scene_id: "world",
+            overlay_id: Some("hud"),
+            palette: DEFAULT_PALETTE,
+        });
+        themes.set_active("overlay-theme").unwrap();
+
+        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
+
+        assert_eq!(bindings.theme_id, "overlay-theme");
+        assert_eq!(bindings.scene_id, "world");
+        assert_eq!(bindings.overlay_id, None);
+    }
+
+    #[test]
+    fn bindings_keep_registered_overlay() {
+        let scenes = scene_registry_with_world();
+        let mut overlays = OverlayRegistry::new();
+        overlays.register(Box::new(TestOverlay::new("hud")));
+        let mut themes = ThemeRegistry::new();
+        themes.register(Theme {
+            id: "overlay",
+            display_name: "Overlay",
+            scene_id: "world",
+            overlay_id: Some("hud"),
+            palette: DEFAULT_PALETTE,
+        });
+        themes.set_active("overlay").unwrap();
+
+        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
+
+        assert_eq!(bindings.theme_id, "overlay");
+        assert_eq!(bindings.overlay_id, Some("hud"));
     }
 }

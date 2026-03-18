@@ -173,10 +173,11 @@ async fn main() -> io::Result<()> {
     }
 
     let mut theme_registry = ThemeRegistry::new();
-    if theme_registry.set_active(&config.theme).is_err() {
+    let theme_id = config.normalized_theme();
+    if theme_registry.set_active(theme_id).is_err() {
         eprintln!(
             "Warning: theme '{}' is not registered, falling back to 'default'.",
-            config.theme
+            theme_id
         );
     }
 
@@ -202,6 +203,7 @@ async fn main() -> io::Result<()> {
         cli.leaves,
         term_width,
         term_height,
+        theme_registry,
     );
 
     let result = tokio::select! {

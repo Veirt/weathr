@@ -1,6 +1,7 @@
 mod decorations;
 mod ground;
 mod house;
+mod style;
 
 use crate::render::TerminalRenderer;
 use crate::scene::{ChimneyPosition, Scene, SceneContext, SceneLayout};
@@ -8,6 +9,7 @@ use decorations::{DecorationLayout, Decorations};
 use ground::Ground;
 use house::House;
 use std::io;
+use style::WorldSceneStyle;
 
 pub struct WorldScene {
     house: House,
@@ -62,15 +64,16 @@ impl Scene for WorldScene {
         let layout = self.layout();
         let house_x = (self.width / 2).saturating_sub(self.house.width() / 2);
         let house_y = layout.ground_y.saturating_sub(self.house.height());
+        let style = WorldSceneStyle::resolve(ctx);
 
         self.ground.render(
             renderer,
             self.width,
             Self::GROUND_HEIGHT,
             layout.ground_y,
-            ctx,
+            &style,
         )?;
-        self.house.render(renderer, house_x, house_y, ctx)?;
+        self.house.render(renderer, house_x, house_y, &style)?;
         self.decorations.render(
             renderer,
             &DecorationLayout {
@@ -79,7 +82,7 @@ impl Scene for WorldScene {
                 house_width: self.house.width(),
                 width: self.width,
             },
-            ctx,
+            &style,
         )?;
 
         Ok(())
