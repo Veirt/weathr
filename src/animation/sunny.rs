@@ -3,6 +3,8 @@ use crate::animation::{
     AnimationController, AnimationSystem, FrameCommands, FrameContext, RenderLayer,
 };
 use crate::render::TerminalRenderer;
+use crate::weather::types::CelestialEvents;
+use chrono::{Local, NaiveTime};
 use crossterm::style::Color;
 use rand::Rng;
 
@@ -64,6 +66,56 @@ impl SunSystem {
             last_frame_time: Instant::now(),
         }
     }
+
+    fn sun_y(
+        now: NaiveTime,
+        lowest: NaiveTime,
+        highest: NaiveTime,
+        horizon_y: u16,
+        default_y: u16,
+    ) -> u16 {
+        use std::f64::consts::PI;
+
+        const BUILDING_BIAS: u16 = 5;
+
+        let half_period = (highest - lowest).num_seconds().unsigned_abs() as f64;
+        if half_period == 0.0 {
+            return default_y;
+        }
+
+        let dist_from_peak = (now - highest).num_seconds().unsigned_abs() as f64;
+        let progress = (dist_from_peak / half_period).clamp(0.0, 1.0);
+        let range = horizon_y
+            .saturating_sub(default_y)
+            .saturating_sub(BUILDING_BIAS) as f64;
+        let offset = range * (1.0 - (progress * PI).cos()) / 2.0;
+
+        default_y + offset.round() as u16
+    }
+
+    fn dynamic_y(
+        now: NaiveTime,
+        sun: &CelestialEvents,
+        horizon_y: u16,
+        default_y: u16,
+        hidden_y: u16,
+    ) -> u16 {
+        let (Some(begin_twilight), Some(upper_transit), Some(end_twilight)) =
+            (sun.begin_twilight, sun.upper_transit, sun.end_twilight)
+        else {
+            return default_y;
+        };
+
+        if now < upper_transit {
+            Self::sun_y(now, begin_twilight, upper_transit, horizon_y, default_y)
+        } else if now < end_twilight {
+            Self::sun_y(now, end_twilight, upper_transit, horizon_y, default_y)
+        } else if now > end_twilight {
+            hidden_y
+        } else {
+            default_y
+        }
+    }
 }
 
 impl Default for SunSystem {
@@ -110,7 +162,14 @@ impl AnimationSystem for SunSystem {
             return Ok(());
         }
 
-        let y_offset = if ctx.size.height > 20 { 3 } else { 2 };
+        let default_y = if ctx.size.height > 20 { 3 } else { 2 };
+        let y_offset = Self::dynamic_y(
+            Local::now().time(),
+            &ctx.conditions.sun,
+            ctx.horizon_y,
+            default_y,
+            ctx.size.height,
+        );
         self.controller
             .render_frame(renderer, &self.animation, y_offset)
     }

@@ -14,7 +14,7 @@ impl Ground {
         y_start: u16,
         ctx: &SceneContext<'_>,
     ) -> io::Result<()> {
-        let is_day = ctx.conditions.is_day;
+        let is_day = ctx.conditions.sun.is_day;
         let palette = ctx.palette;
 
         let width = width as usize;

@@ -214,7 +214,7 @@ impl AnimationSystem for StarSystem {
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
-        !ctx.conditions.is_day
+        !ctx.conditions.sun.is_day
     }
 
     fn on_resize(&mut self, size: TerminalSize) {

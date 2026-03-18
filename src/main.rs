@@ -23,6 +23,7 @@ use crossterm::{
 };
 use render::TerminalRenderer;
 use std::{io, panic};
+use theme::ThemeRegistry;
 
 fn info(silent: bool, msg: &str) {
     if !silent {
@@ -169,6 +170,14 @@ async fn main() -> io::Result<()> {
             info(config.silent, &format!("City resolved: {}", city));
             config.location.city = Some(city);
         }
+    }
+
+    let mut theme_registry = ThemeRegistry::new();
+    if theme_registry.set_active(&config.theme).is_err() {
+        eprintln!(
+            "Warning: theme '{}' is not registered, falling back to 'default'.",
+            config.theme
+        );
     }
 
     let mut renderer = match TerminalRenderer::new() {

@@ -49,13 +49,13 @@ impl SceneRegistry {
     }
 
     pub fn get(&self, id: &str) -> Option<&dyn Scene> {
-        self.scenes.get(id).map(|b| b.as_ref())
+        self.scenes.get(id).map(|scene| scene.as_ref())
     }
 
     pub fn get_mut(&mut self, id: &str) -> Option<&mut dyn Scene> {
         self.scenes
             .get_mut(id)
-            .map(|b| -> &mut dyn Scene { b.as_mut() })
+            .map(|scene| -> &mut dyn Scene { scene.as_mut() })
     }
 }
 

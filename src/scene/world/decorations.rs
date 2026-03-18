@@ -24,7 +24,7 @@ impl Decorations {
         layout: &DecorationLayout,
         ctx: &SceneContext<'_>,
     ) -> io::Result<()> {
-        let is_day = ctx.conditions.is_day;
+        let is_day = ctx.conditions.sun.is_day;
 
         self.render_tree(renderer, layout, is_day)?;
         self.render_fence(renderer, layout, is_day)?;

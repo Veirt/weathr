@@ -86,7 +86,7 @@ impl AnimationSystem for BirdSystem {
     }
 
     fn is_active(&self, ctx: &FrameContext<'_>) -> bool {
-        ctx.conditions.is_day
+        ctx.conditions.sun.is_day
             && !ctx.conditions.is_raining
             && !ctx.conditions.is_thunderstorm
             && !ctx.conditions.is_snowing

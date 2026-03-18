@@ -10,6 +10,7 @@ use crate::theme::ThemeRegistry;
 
 use crate::weather::provider::WeatherProvider;
 use crate::weather::provider::met_office::{MetOfficeProvider, MetOfficeProviderConfig};
+use crate::weather::types::CelestialEvents;
 use crate::weather::{
     OpenMeteoProvider, WeatherClient, WeatherCondition, WeatherData, WeatherLocation,
 };
@@ -51,7 +52,7 @@ fn generate_offline_weather(rng: &mut impl rand::Rng) -> WeatherData {
         },
         wind_speed: rng.random_range(5.0..15.0),
         wind_direction: rng.random_range(0.0..360.0),
-        is_day,
+        sun: CelestialEvents::from_bool(is_day),
         moon_phase: Some(0.5),
         timestamp: now.format("%Y-%m-%dT%H:%M:%S").to_string(),
         attribution: "".to_string(),
@@ -98,12 +99,7 @@ impl App {
         let overlays = OverlayRegistry::new();
 
         let mut themes = ThemeRegistry::new();
-        if themes.set_active(&config.theme).is_err() {
-            eprintln!(
-                "Warning: theme '{}' is not registered, falling back to 'default'.",
-                config.theme
-            );
-        }
+        let _ = themes.set_active(&config.theme);
 
         let (tx, rx) = mpsc::channel(1);
 
@@ -130,7 +126,7 @@ impl App {
                     10.0
                 },
                 wind_direction: 225.0,
-                is_day: !simulate_night,
+                sun: CelestialEvents::from_bool(!simulate_night),
                 moon_phase: Some(0.5),
                 timestamp: "simulated".to_string(),
                 attribution: "".to_string(),
