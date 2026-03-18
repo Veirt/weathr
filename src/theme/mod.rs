@@ -85,6 +85,10 @@ impl ThemeRegistry {
             .get(self.active)
             .expect("active theme id must always reference a registered theme")
     }
+
+    pub fn get(&self, id: &str) -> Option<&Theme> {
+        self.themes.get(id)
+    }
 }
 
 impl Default for ThemeRegistry {

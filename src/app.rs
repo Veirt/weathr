@@ -34,13 +34,14 @@ struct ThemeBindings {
 }
 
 fn resolve_theme_bindings(
-    themes: &mut ThemeRegistry,
+    themes: &ThemeRegistry,
     scenes: &SceneRegistry,
     overlays: &OverlayRegistry,
 ) -> ThemeBindings {
-    let mut theme_id = themes.active().id;
-    let mut scene_id = themes.active().scene_id;
-    let mut overlay_id = themes.active().overlay_id;
+    let active_theme = themes.active();
+    let mut theme_id = active_theme.id;
+    let mut scene_id = active_theme.scene_id;
+    let mut overlay_id = active_theme.overlay_id;
 
     let scene_missing = scenes.get(scene_id).is_none();
     if scene_missing {
@@ -49,12 +50,12 @@ fn resolve_theme_bindings(
                 "Warning: theme '{}' references missing scene '{}'. Falling back to '{}'.",
                 theme_id, scene_id, DEFAULT_THEME_ID
             );
-            themes
-                .set_active(DEFAULT_THEME_ID)
+            let fallback_theme = themes
+                .get(DEFAULT_THEME_ID)
                 .expect("default theme must be registered");
-            theme_id = themes.active().id;
-            scene_id = themes.active().scene_id;
-            overlay_id = themes.active().overlay_id;
+            theme_id = fallback_theme.id;
+            scene_id = fallback_theme.scene_id;
+            overlay_id = fallback_theme.overlay_id;
         } else {
             panic!("default theme references missing scene '{}'.", scene_id);
         }
@@ -140,7 +141,7 @@ impl App {
         show_leaves: bool,
         term_width: u16,
         term_height: u16,
-        mut themes: ThemeRegistry,
+        themes: ThemeRegistry,
     ) -> Self {
         let location = WeatherLocation {
             latitude: config.location.latitude,
@@ -161,7 +162,7 @@ impl App {
         scenes.register(Box::new(WorldScene::new(term_width, term_height)));
 
         let overlays = OverlayRegistry::new();
-        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
+        let bindings = resolve_theme_bindings(&themes, &scenes, &overlays);
 
         let (tx, rx) = mpsc::channel(1);
 
@@ -510,7 +511,7 @@ mod tests {
         });
         themes.set_active("custom").unwrap();
 
-        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
+        let bindings = resolve_theme_bindings(&themes, &scenes, &overlays);
 
         assert_eq!(bindings.theme_id, DEFAULT_THEME_ID);
         assert_eq!(bindings.scene_id, "world");
@@ -531,7 +532,7 @@ mod tests {
         });
         themes.set_active("overlay-theme").unwrap();
 
-        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
+        let bindings = resolve_theme_bindings(&themes, &scenes, &overlays);
 
         assert_eq!(bindings.theme_id, "overlay-theme");
         assert_eq!(bindings.scene_id, "world");
@@ -553,7 +554,7 @@ mod tests {
         });
         themes.set_active("overlay").unwrap();
 
-        let bindings = resolve_theme_bindings(&mut themes, &scenes, &overlays);
+        let bindings = resolve_theme_bindings(&themes, &scenes, &overlays);
 
         assert_eq!(bindings.theme_id, "overlay");
         assert_eq!(bindings.overlay_id, Some("hud"));
