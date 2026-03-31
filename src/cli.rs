@@ -78,6 +78,18 @@ pub struct Cli {
 
     #[arg(long, value_name = "SHELL", value_enum)]
     pub completions: Option<Shell>,
+
+    #[cfg(target_os = "windows")]
+    #[arg(long, help = "Spawn as a borderless fullscreen window")]
+    pub fullscreen: bool,
+
+    #[cfg(target_os = "windows")]
+    #[arg(
+        long,
+        help = "Don't respawn into conhost when --fullscreen is enabled",
+        hide = true
+    )]
+    pub forked: bool,
 }
 
 pub fn extract_simulate_missing_value(err: clap::Error) -> clap::Error {
