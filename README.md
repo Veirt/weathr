@@ -34,7 +34,8 @@ Features real-time weather from Open-Meteo with animated rain, snow, thunderstor
 
 ## Packaging Status
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/weathr.svg)](https://repology.org/project/weathr/versions)
+[![Packaging status](https://repology.org/badge/vertical-allrepos/weathr.svg)](https://repology.org/project/weathr/versions)<br>
+![Winget](https://img.shields.io/winget/v/Veirt.weathr)
 
 ## Installation
 
