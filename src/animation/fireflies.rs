@@ -146,6 +146,9 @@ impl FireflySystem {
         if self.fireflies.len() < target_count && rng.random::<f32>() < 0.01 {
             self.fireflies
                 .push(Firefly::new(terminal_width, horizon_y, rng));
+        } else if self.fireflies.len() > target_count {
+            self.fireflies.truncate(target_count);
+            self.fireflies.shrink_to_fit();
         }
     }
 
