@@ -78,7 +78,7 @@ pub async fn load_cached_location() -> Option<GeoLocation> {
     let cache: LocationCache = serde_json::from_str(&contents).ok()?;
 
     let now = current_timestamp();
-    if now - cache.cached_at < LOCATION_CACHE_DURATION_SECS {
+    if now.saturating_sub(cache.cached_at) < LOCATION_CACHE_DURATION_SECS {
         Some(cache.location)
     } else {
         None
@@ -96,7 +96,12 @@ async fn write_location_cache(location: &GeoLocation) -> Result<(), std::io::Err
 
         let json = serde_json::to_string(&cache)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        fs::write(cache_dir.join("location.json"), json).await?;
+
+        // Atomic write: write to temp file, then rename
+        let temp_path = cache_dir.join("location.json.tmp");
+        let final_path = cache_dir.join("location.json");
+        fs::write(&temp_path, json).await?;
+        fs::rename(temp_path, final_path).await?;
     }
     Ok(())
 }
@@ -116,17 +121,14 @@ struct GeocodeCache {
 }
 
 pub async fn load_cached_geocode(latitude: f64, longitude: f64, language: &str) -> Option<String> {
-    let cache_path = get_cache_dir()?.join("geocode.json");
+    let location_key = make_location_key(latitude, longitude);
+    let filename = format!("geocode_{}_{}.json", location_key, language);
+    let cache_path = get_cache_dir()?.join(filename);
     let contents = fs::read_to_string(&cache_path).await.ok()?;
     let cache: GeocodeCache = serde_json::from_str(&contents).ok()?;
 
-    let location_key = make_location_key(latitude, longitude);
-    if cache.location_key != location_key || cache.language != language {
-        return None;
-    }
-
     let now = current_timestamp();
-    if now - cache.cached_at < LOCATION_CACHE_DURATION_SECS {
+    if now.saturating_sub(cache.cached_at) < LOCATION_CACHE_DURATION_SECS {
         Some(cache.city_name)
     } else {
         None
@@ -142,16 +144,23 @@ async fn write_geocode_cache(
     if let Some(cache_dir) = get_cache_dir() {
         fs::create_dir_all(&cache_dir).await?;
 
+        let location_key = make_location_key(latitude, longitude);
         let cache = GeocodeCache {
             city_name: city_name.to_string(),
             cached_at: current_timestamp(),
-            location_key: make_location_key(latitude, longitude),
+            location_key: location_key.clone(),
             language: language.to_string(),
         };
 
         let json = serde_json::to_string(&cache)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        fs::write(cache_dir.join("geocode.json"), json).await?;
+
+        // Atomic write with location-specific filename to prevent cache thrashing
+        let filename = format!("geocode_{}_{}.json", location_key, language);
+        let temp_path = cache_dir.join(format!("{}.tmp", filename));
+        let final_path = cache_dir.join(filename);
+        fs::write(&temp_path, json).await?;
+        fs::rename(temp_path, final_path).await?;
     }
     Ok(())
 }
@@ -170,17 +179,14 @@ pub async fn load_cached_weather(
     longitude: f64,
     provider: Provider,
 ) -> Option<WeatherData> {
-    let cache_path = get_cache_dir()?.join("weather.json");
+    let location_key = make_location_key(latitude, longitude);
+    let filename = format!("weather_{}_{:?}.json", location_key, provider);
+    let cache_path = get_cache_dir()?.join(filename);
     let contents = fs::read_to_string(&cache_path).await.ok()?;
     let cache: WeatherCache = serde_json::from_str(&contents).ok()?;
 
-    let location_key = make_location_key(latitude, longitude);
-    if cache.location_key != location_key || cache.provider != provider {
-        return None;
-    }
-
     let now = current_timestamp();
-    if now - cache.cached_at < WEATHER_CACHE_DURATION_SECS {
+    if now.saturating_sub(cache.cached_at) < WEATHER_CACHE_DURATION_SECS {
         Some(cache.data)
     } else {
         None
@@ -196,16 +202,23 @@ async fn write_weather_cache(
     if let Some(cache_dir) = get_cache_dir() {
         fs::create_dir_all(&cache_dir).await?;
 
+        let location_key = make_location_key(latitude, longitude);
         let cache = WeatherCache {
             data: weather.clone(),
             cached_at: current_timestamp(),
-            location_key: make_location_key(latitude, longitude),
+            location_key: location_key.clone(),
             provider,
         };
 
         let json = serde_json::to_string(&cache)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        fs::write(cache_dir.join("weather.json"), json).await?;
+
+        // Atomic write with location-specific filename to prevent cache thrashing
+        let filename = format!("weather_{}_{:?}.json", location_key, provider);
+        let temp_path = cache_dir.join(format!("{}.tmp", filename));
+        let final_path = cache_dir.join(filename);
+        fs::write(&temp_path, json).await?;
+        fs::rename(temp_path, final_path).await?;
     }
     Ok(())
 }
