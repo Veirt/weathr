@@ -32,6 +32,8 @@ pub struct Config {
     #[serde(default)]
     pub silent: bool,
     #[serde(default)]
+    pub twelve_hour: bool,
+    #[serde(default)]
     pub provider: HashMap<Provider, Table>,
     #[serde(default = "default_theme")]
     pub theme: String,
@@ -365,6 +367,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            twelve_hour: false,
             provider: HashMap::new(),
             theme: "default".to_string(),
         };
@@ -388,6 +391,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            twelve_hour: false,
             provider: HashMap::new(),
             theme: "default".to_string(),
         };
@@ -411,6 +415,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            twelve_hour: false,
             provider: HashMap::new(),
             theme: "default".to_string(),
         };
@@ -434,6 +439,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            twelve_hour: false,
             provider: HashMap::new(),
             theme: "default".to_string(),
         };
@@ -457,6 +463,7 @@ longitude = 0.0
             hide_hud: false,
             units: WeatherUnits::default(),
             silent: false,
+            twelve_hour: false,
             provider: HashMap::new(),
             theme: "default".to_string(),
         };

@@ -12,6 +12,7 @@ pub mod stars;
 pub mod sunny;
 pub mod system;
 pub mod thunderstorm;
+pub mod time_display;
 
 pub use system::{
     AnimationSystem, ChimneyPosition, FrameCommands, FrameContext, RenderLayer, TerminalSize, Wind,

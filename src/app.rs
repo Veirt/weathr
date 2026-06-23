@@ -134,11 +134,13 @@ pub struct App {
 }
 
 impl App {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: &Config,
         simulate_condition: Option<String>,
         simulate_night: bool,
         show_leaves: bool,
+        twelve_hour: bool,
         term_width: u16,
         term_height: u16,
         themes: ThemeRegistry,
@@ -156,7 +158,8 @@ impl App {
             config.location.hide,
             config.units,
         );
-        let mut animations = AnimationManager::new(term_width, term_height, show_leaves);
+        let mut animations =
+            AnimationManager::new(term_width, term_height, show_leaves, twelve_hour);
 
         let mut scenes = SceneRegistry::new();
         scenes.register(Box::new(WorldScene::new(term_width, term_height)));

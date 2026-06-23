@@ -3,7 +3,7 @@ use crate::animation::{
     airplanes::AirplaneSystem, birds::BirdSystem, chimney::ChimneySmoke, clouds::CloudSystem,
     fireflies::FireflySystem, fog::FogSystem, leaves::FallingLeaves, moon::MoonSystem,
     raindrops::RaindropSystem, snow::SnowSystem, stars::StarSystem, sunny::SunSystem,
-    thunderstorm::ThunderstormSystem,
+    thunderstorm::ThunderstormSystem, time_display::TimeDisplaySystem,
 };
 use crate::app_state::AppState;
 use crate::render::TerminalRenderer;
@@ -18,7 +18,7 @@ pub struct AnimationManager {
 }
 
 impl AnimationManager {
-    pub fn new(term_width: u16, term_height: u16, show_leaves: bool) -> Self {
+    pub fn new(term_width: u16, term_height: u16, show_leaves: bool, twelve_hour: bool) -> Self {
         let systems: Vec<Box<dyn AnimationSystem>> = vec![
             // Background (code-defined order)
             Box::new(StarSystem::new(term_width, term_height)),
@@ -44,6 +44,8 @@ impl AnimationManager {
             )),
             Box::new(FogSystem::new(term_width, term_height, FogIntensity::Light)),
             Box::new(FallingLeaves::new(term_width, term_height)),
+            // Drawn last so the clock stays on top of all weather effects.
+            Box::new(TimeDisplaySystem::new(twelve_hour)),
         ];
 
         debug_assert!(

@@ -76,6 +76,12 @@ pub struct Cli {
     #[arg(long, help = "Run silently (suppress non-error output)")]
     pub silent: bool,
 
+    #[arg(
+        long = "12hour",
+        help = "Use 12-hour clock with AM/PM (default is 24-hour)"
+    )]
+    pub twelve_hour: bool,
+
     #[arg(long, value_name = "SHELL", value_enum)]
     pub completions: Option<Shell>,
 }

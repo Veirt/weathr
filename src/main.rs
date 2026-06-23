@@ -96,6 +96,9 @@ async fn main() -> io::Result<()> {
     if cli.silent {
         config.silent = true;
     }
+    if cli.twelve_hour {
+        config.twelve_hour = true;
+    }
 
     let lat_from_env = std::env::var(config::ENV_LATITUDE).is_ok();
     let lon_from_env = std::env::var(config::ENV_LONGITUDE).is_ok();
@@ -200,6 +203,7 @@ async fn main() -> io::Result<()> {
         cli.simulate,
         cli.night,
         cli.leaves,
+        config.twelve_hour,
         term_width,
         term_height,
         theme_registry,
