@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod met_office;
 pub mod open_meteo;
+pub mod wheater_api;
 pub mod supplementary;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
