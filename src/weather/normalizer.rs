@@ -10,6 +10,7 @@ impl WeatherNormalizer {
         WeatherData {
             condition,
             temperature: response.temperature,
+            feels_like_temperature: response.feels_like_temperature,
             precipitation: response.precipitation,
             wind_speed: response.wind_speed,
             wind_direction: response.wind_direction,
@@ -97,6 +98,7 @@ mod tests {
         let response = WeatherProviderResponse {
             weather_code: 61,
             temperature: 20.5,
+            feels_like_temperature: 22.5,
             precipitation: 2.5,
             wind_speed: 15.0,
             wind_direction: 180.0,
@@ -110,6 +112,7 @@ mod tests {
 
         assert_eq!(data.condition, WeatherCondition::Rain);
         assert_eq!(data.temperature, 20.5);
+        assert_eq!(data.feels_like_temperature, 22.5);
         assert!(data.sun.is_day);
         assert_eq!(data.moon_phase, Some(0.5));
     }

@@ -16,6 +16,7 @@ pub struct AppState {
     pub city_name: Option<String>,
     pub location_display: LocationDisplay,
     pub hide_location: bool,
+    pub use_feels_like_temperature: bool,
     pub units: WeatherUnits,
 }
 
@@ -25,6 +26,7 @@ impl AppState {
         city_name: Option<String>,
         location_display: LocationDisplay,
         hide_location: bool,
+        use_feels_like_temperature: bool,
         units: WeatherUnits,
     ) -> Self {
         Self {
@@ -38,6 +40,7 @@ impl AppState {
             city_name,
             location_display,
             hide_location,
+            use_feels_like_temperature,
             units,
         }
     }
@@ -124,6 +127,18 @@ impl AppState {
             format!(" | Location: {}", label)
         };
 
+        let apparent_temp_str = if let Some(ref weather) = self.current_weather {
+            if self.use_feels_like_temperature {
+                let (apparent_temp, apparent_temp_unit) =
+                    format_temperature(weather.feels_like_temperature, self.units.temperature);
+                format!(" (~{:.1}{})", apparent_temp, apparent_temp_unit)
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
         self.cached_weather_info = if let Some(ref weather) = self.current_weather {
             let (temp, temp_unit) = format_temperature(weather.temperature, self.units.temperature);
             let (wind, wind_unit) = format_wind_speed(weather.wind_speed, self.units.wind_speed);
@@ -133,11 +148,12 @@ impl AppState {
             let offline_indicator = if self.is_offline { "OFFLINE | " } else { "" };
 
             format!(
-                "{}Weather: {} | Temp: {:.1}{} | Wind: {:.1}{} | Precip: {:.1}{}{} | Press 'q' to quit",
+                "{}Weather: {} | Temp: {:.1}{}{} | Wind: {:.1}{} | Precip: {:.1}{}{} | Press 'q' to quit",
                 offline_indicator,
                 self.get_condition_text(),
                 temp,
                 temp_unit,
+                apparent_temp_str,
                 wind,
                 wind_unit,
                 precip,
@@ -251,11 +267,12 @@ mod tests {
             wind_speed: WindSpeedUnit::Kmh,
             precipitation: PrecipitationUnit::Mm,
         };
-        let mut app = AppState::new(location, city, display, false, units);
+        let mut app = AppState::new(location, city, display, false, false, units);
 
         let weather = WeatherData {
             condition: WeatherCondition::Clear,
             temperature: 20.0,
+            feels_like_temperature: 22.0,
             precipitation: 0.0,
             wind_speed: 10.0,
             wind_direction: 0.0,
@@ -403,5 +420,75 @@ mod tests {
                 .contains("Location: 34.08°N, 84.29°W")
         );
         assert!(!app.cached_weather_info.contains("("));
+    }
+
+    fn make_app_with_apparent_temp(show: bool, temp_unit: TemperatureUnit) -> AppState {
+        let location = WeatherLocation {
+            latitude: 0.0,
+            longitude: 0.0,
+            elevation: None,
+        };
+        let units = WeatherUnits {
+            temperature: temp_unit,
+            wind_speed: WindSpeedUnit::Kmh,
+            precipitation: PrecipitationUnit::Mm,
+        };
+        let mut app = AppState::new(
+            location,
+            None,
+            LocationDisplay::Coordinates,
+            true,
+            show,
+            units,
+        );
+        let weather = WeatherData {
+            condition: WeatherCondition::Clear,
+            temperature: 20.0,
+            feels_like_temperature: 22.0,
+            precipitation: 0.0,
+            wind_speed: 10.0,
+            wind_direction: 0.0,
+            moon_phase: Some(0.5),
+            timestamp: "2024-01-01T12:00:00Z".to_string(),
+            attribution: "".to_string(),
+            sun: CelestialEvents::from_bool(true),
+        };
+        app.update_weather(weather);
+        app
+    }
+
+    #[test]
+    fn test_feels_like_temperature_shown_in_celsius() {
+        let mut app = make_app_with_apparent_temp(true, TemperatureUnit::Celsius);
+        app.update_cached_info();
+        // feels_like_temperature is 22.0°C — expect "(~22.0°C)" in the HUD
+        assert!(
+            app.cached_weather_info.contains("(~22.0°C)"),
+            "expected '(~22.0°C)' in: {}",
+            app.cached_weather_info
+        );
+    }
+
+    #[test]
+    fn test_feels_like_temperature_hidden_when_disabled() {
+        let mut app = make_app_with_apparent_temp(false, TemperatureUnit::Celsius);
+        app.update_cached_info();
+        assert!(
+            !app.cached_weather_info.contains("(~"),
+            "expected no apparent-temp marker in: {}",
+            app.cached_weather_info
+        );
+    }
+
+    #[test]
+    fn test_feels_like_temperature_converted_to_fahrenheit() {
+        let mut app = make_app_with_apparent_temp(true, TemperatureUnit::Fahrenheit);
+        app.update_cached_info();
+        // 22.0°C → 22.0 * 9/5 + 32 = 71.6°F
+        assert!(
+            app.cached_weather_info.contains("(~71.6°F)"),
+            "expected '(~71.6°F)' in: {}",
+            app.cached_weather_info
+        );
     }
 }

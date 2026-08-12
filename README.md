@@ -196,6 +196,9 @@ Edit the config file at the appropriate path for your platform:
 # Hide the HUD (Heads Up Display) with weather details
 hide_hud = false
 
+# Display the "feels like" temperature alongside the actual temperature in the HUD
+use_feels_like_temperature = false
+
 # Run silently without startup messages (errors still shown)
 silent = false
 
@@ -303,6 +306,9 @@ weathr --hide-location
 
 # Hide status HUD
 weathr --hide-hud
+
+# Show feels-like temperature alongside actual temperature
+weathr --use-feels-like-temperature
 
 # Run silently (suppress non-error output)
 weathr --silent

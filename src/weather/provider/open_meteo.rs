@@ -26,6 +26,7 @@ struct OpenMeteoResponse {
 struct CurrentWeather {
     time: String,
     temperature_2m: f64,
+    apparent_temperature: f64,
     #[serde(deserialize_with = "deserialize_i32_from_number")]
     is_day: i32,
     precipitation: f64,
@@ -100,7 +101,7 @@ impl OpenMeteoProvider {
 
     fn build_url(&self, location: &WeatherLocation, units: &WeatherUnits) -> String {
         format!(
-            "{}?latitude={}&longitude={}&current=temperature_2m,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit={}&wind_speed_unit={}&precipitation_unit={}&timezone=auto",
+            "{}?latitude={}&longitude={}&current=temperature_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m&temperature_unit={}&wind_speed_unit={}&precipitation_unit={}&timezone=auto",
             self.base_url,
             location.latitude,
             location.longitude,
@@ -147,6 +148,10 @@ impl WeatherProvider for OpenMeteoProvider {
         Ok(WeatherProviderResponse {
             weather_code: data.current.weather_code,
             temperature: normalize_temperature(data.current.temperature_2m, units.temperature),
+            feels_like_temperature: normalize_temperature(
+                data.current.apparent_temperature,
+                units.temperature,
+            ),
             precipitation: normalize_precipitation(data.current.precipitation, units.precipitation),
             wind_speed: normalize_wind_speed(data.current.wind_speed_10m, units.wind_speed),
             wind_direction: data.current.wind_direction_10m,

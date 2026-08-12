@@ -193,6 +193,12 @@ impl WeatherProvider for MetOfficeProvider {
                 current_weather.screen_temperature,
                 "screenTemperature",
             )?,
+            feels_like_temperature: current_weather.normalize_temperature(
+                units,
+                &data.parameters,
+                current_weather.feels_like_temperature,
+                "feelsLikeTemperature",
+            )?,
             precipitation: current_weather.normalize_precipitation_rate(units, &data.parameters)?,
             wind_speed: current_weather.normalize_wind_speeds(
                 units,

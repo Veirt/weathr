@@ -28,6 +28,8 @@ pub struct Config {
     #[serde(default)]
     pub hide_hud: bool,
     #[serde(default)]
+    pub use_feels_like_temperature: bool,
+    #[serde(default)]
     pub units: WeatherUnits,
     #[serde(default)]
     pub silent: bool,
@@ -363,6 +365,7 @@ longitude = 0.0
                 city_name_language: "auto".to_string(),
             },
             hide_hud: false,
+            use_feels_like_temperature: false,
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
@@ -386,6 +389,7 @@ longitude = 0.0
                 city_name_language: "auto".to_string(),
             },
             hide_hud: false,
+            use_feels_like_temperature: false,
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
@@ -409,6 +413,7 @@ longitude = 0.0
                 city_name_language: "auto".to_string(),
             },
             hide_hud: false,
+            use_feels_like_temperature: false,
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
@@ -432,6 +437,7 @@ longitude = 0.0
                 city_name_language: "auto".to_string(),
             },
             hide_hud: false,
+            use_feels_like_temperature: false,
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),
@@ -455,6 +461,7 @@ longitude = 0.0
                 city_name_language: "auto".to_string(),
             },
             hide_hud: false,
+            use_feels_like_temperature: false,
             units: WeatherUnits::default(),
             silent: false,
             provider: HashMap::new(),

@@ -40,6 +40,7 @@ fn test_weather_normalizer_integration_all_wmo_codes() {
         let response = WeatherProviderResponse {
             weather_code: code,
             temperature: 20.0,
+            feels_like_temperature: 22.0,
             precipitation: 0.0,
             wind_speed: 10.0,
             wind_direction: 180.0,
@@ -63,6 +64,7 @@ fn test_weather_normalizer_integration_day_night() {
     let response_day = WeatherProviderResponse {
         weather_code: 0,
         temperature: 20.0,
+        feels_like_temperature: 22.0,
         precipitation: 0.0,
         wind_speed: 10.0,
         wind_direction: 180.0,
@@ -75,6 +77,7 @@ fn test_weather_normalizer_integration_day_night() {
     let response_night = WeatherProviderResponse {
         weather_code: 0,
         temperature: 15.0,
+        feels_like_temperature: 17.0,
         precipitation: 0.0,
         wind_speed: 5.0,
         wind_direction: 180.0,
@@ -96,6 +99,7 @@ fn test_weather_normalizer_integration_clear_conditions() {
     let response = WeatherProviderResponse {
         weather_code: 0,
         temperature: 22.5,
+        feels_like_temperature: 24.0,
         precipitation: 0.0,
         wind_speed: 5.0,
         wind_direction: 90.0,
@@ -109,6 +113,7 @@ fn test_weather_normalizer_integration_clear_conditions() {
 
     assert_eq!(weather.condition, WeatherCondition::Clear);
     assert_eq!(weather.temperature, 22.5);
+    assert_eq!(weather.feels_like_temperature, 24.0);
     assert_eq!(weather.precipitation, 0.0);
     assert!(weather.sun.is_day);
 }
@@ -118,6 +123,7 @@ fn test_weather_normalizer_integration_rainy_conditions() {
     let response = WeatherProviderResponse {
         weather_code: 61,
         temperature: 15.0,
+        feels_like_temperature: 17.0,
         precipitation: 5.2,
         wind_speed: 12.0,
         wind_direction: 270.0,
@@ -130,6 +136,7 @@ fn test_weather_normalizer_integration_rainy_conditions() {
     let weather = WeatherNormalizer::normalize(response);
 
     assert_eq!(weather.condition, WeatherCondition::Rain);
+    assert_eq!(weather.feels_like_temperature, 17.0);
     assert_eq!(weather.precipitation, 5.2);
 }
 
@@ -138,6 +145,7 @@ fn test_weather_normalizer_integration_snowy_conditions() {
     let response = WeatherProviderResponse {
         weather_code: 71,
         temperature: -2.0,
+        feels_like_temperature: -1.0,
         precipitation: 3.5,
         wind_speed: 8.0,
         wind_direction: 0.0,
@@ -150,6 +158,7 @@ fn test_weather_normalizer_integration_snowy_conditions() {
     let weather = WeatherNormalizer::normalize(response);
 
     assert_eq!(weather.condition, WeatherCondition::Snow);
+    assert_eq!(weather.feels_like_temperature, -1.0);
     assert!(weather.temperature < 0.0);
     assert!(!weather.sun.is_day);
 }

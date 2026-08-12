@@ -11,6 +11,7 @@ pub mod supplementary;
 pub struct WeatherProviderResponse {
     pub weather_code: i32,
     pub temperature: f64,
+    pub feels_like_temperature: f64,
     pub precipitation: f64,
     pub wind_speed: f64,
     pub wind_direction: f64,
